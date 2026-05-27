@@ -239,7 +239,7 @@
         desc: 'Atraso e desconto por umidade. Parte do lote foi para grão ardido.',
         impactoTexto: () => '−4% produtividade · −3% no preço (desconto por umidade)',
         explicacao: 'Chuva na colheita atrasa as máquinas (que não entram em solo molhado) e degrada o grão (umidade alta + tempo no campo = grão ardido). O comprador desconta tanto pelo teor de umidade quanto pelas impurezas.',
-        aplicar: (s) => { s.modProd *= 0.96; s.modPreco *= 0.97; }
+        aplicar: (s) => { s.modProd *= 0.96; s.modCbot *= 0.97; }
       },
       // --- COMERCIALIZAÇÃO ---
       {
@@ -252,7 +252,7 @@
         desc: 'Chicago cai 6%. Físico no MT acompanha com defasagem.',
         impactoTexto: () => '−6% no preço',
         explicacao: 'O USDA (Departamento de Agricultura dos EUA) publica relatórios mensais (WASDE) sobre produção e estoques. É a "ata do Copom" do agro mundial. Quando o USDA aumenta a estimativa da safra americana, a soja em Chicago cai — e a soja brasileira segue com defasagem de horas.',
-        aplicar: (s) => { s.modPreco *= 0.94; }
+        aplicar: (s) => { s.modCbot *= 0.94; }
       },
       {
         id: 'usda_alta',
@@ -264,7 +264,7 @@
         desc: 'Prêmio brasileiro dispara. Janela rara pra vender bem.',
         impactoTexto: () => '+9% no preço',
         explicacao: 'A Argentina é o terceiro maior produtor mundial. Quando ela quebra (seca, geada, conflito político), a oferta global aperta e o Brasil vira o "salvador da pátria". O prêmio de exportação dispara e os preços sobem no físico inteiro do país.',
-        aplicar: (s) => { s.modPreco *= 1.09; }
+        aplicar: (s) => { s.modCbot *= 1.09; }
       },
       {
         id: 'dolar_sobe',
@@ -276,7 +276,7 @@
         desc: 'Soja em reais fica mais cara. Bom pra quem ainda não vendeu.',
         impactoTexto: () => '+5% no preço (cotação em R$)',
         explicacao: 'Soja é uma commodity dolarizada. O preço lá fora (Chicago) é em dólar. Quando o dólar sobe, sua saca em reais sobe junto, mesmo que Chicago não tenha mudado. Quem ainda não vendeu agradece; quem travou cedo perde a janela.',
-        aplicar: (s) => { s.modPreco *= 1.05; }
+        aplicar: (s) => { s.modPtax *= 1.05; }
       },
       {
         id: 'dolar_cai',
@@ -288,7 +288,7 @@
         desc: 'BC mais firme e fluxo positivo. Quem travou agradece.',
         impactoTexto: () => '−5% no preço (cotação em R$)',
         explicacao: 'Dólar mais baixo significa menos reais por saca, mesmo com Chicago estável. É exatamente o cenário em que quem travou antecipado se dá bem — eles fixaram o preço em reais lá atrás, antes da queda.',
-        aplicar: (s) => { s.modPreco *= 0.95; }
+        aplicar: (s) => { s.modPtax *= 0.95; }
       },
       {
         id: 'b15',
@@ -300,7 +300,7 @@
         desc: 'Demanda de óleo de soja sobe. Esmagadoras pagam mais.',
         impactoTexto: () => '+3% no preço',
         explicacao: 'O programa nacional de biodiesel define que parte do diesel vendido no Brasil deve conter óleo vegetal — hoje 14% (B14), com plano de subir pra 15% (B15). Mais óleo no diesel = mais demanda por óleo de soja = esmagadoras pagam mais pelo grão pra produzir o óleo.',
-        aplicar: (s) => { s.modPreco *= 1.03; }
+        aplicar: (s) => { s.modCbot *= 1.03; }
       }
     ];
 
@@ -378,7 +378,7 @@
 
       // Preço final
       const basisFinal = INITIAL_MARKET.basisMT + simState.modBasis;
-      const futuroFinal = INITIAL_MARKET.futuroJulho * simState.modPreco;
+      const futuroFinal = INITIAL_MARKET.futuroJulho * simState.modCbot * simState.modPtax;
       const precoSpot = futuroFinal + basisFinal;
 
       // Travamento antecipado: vendido ao preço inicial (futuro - basis original)
@@ -490,6 +490,123 @@
     // ============================================================
     // COMPONENTES
     // ============================================================
+
+    // Mapa de fase → mês/descrição (calendário do ciclo da soja MT)
+    const FASE_INFO = {
+      'intro':                   { mes: 'Pré-safra',           descricao: 'Ponto de partida' },
+      'setup-pacote':            { mes: 'Agosto 2025',         descricao: 'Definindo tecnologia' },
+      'setup-fin':               { mes: 'Agosto 2025',         descricao: 'Estruturando o capital' },
+      'setup-seg':               { mes: 'Agosto 2025',         descricao: 'Proteção de risco' },
+      'setup-trava':             { mes: 'Agosto 2025',         descricao: 'Decisão de hedge' },
+      'setup-plantio':           { mes: 'Setembro 2025',       descricao: 'Escolha da janela' },
+      'plantio-eventos':         { mes: 'Out–Nov 2025',        descricao: 'Plantio em andamento' },
+      'setup-manejo':            { mes: 'Dezembro 2025',       descricao: 'Vegetativo iniciando' },
+      'vegetativo-eventos':      { mes: 'Dez 25 – Jan 26',     descricao: 'Floração — fase crítica' },
+      'enchimento-eventos':      { mes: 'Jan – Fev 2026',      descricao: 'Enchimento de grão' },
+      'colheita-eventos':        { mes: 'Fev – Abr 2026',      descricao: 'Colheita' },
+      'setup-venda':             { mes: 'Março 2026',          descricao: 'Decisão de venda' },
+      'comercializacao-eventos': { mes: 'Mar – Jul 2026',      descricao: 'Comercialização' },
+      'dre':                     { mes: 'Julho 2026',          descricao: 'Fim da safra' }
+    };
+
+    function MonthLine({ fase }) {
+      const info = FASE_INFO[fase] || { mes: '—', descricao: '' };
+      return (
+        <div className="flex items-center gap-2 px-1 text-[11px] font-mono">
+          <Calendar size={12} className="text-[#D4A574] flex-shrink-0" />
+          <span className="text-[#D4A574] uppercase tracking-wider font-medium">{info.mes}</span>
+          <span className="text-[#3a3a2e]">·</span>
+          <span className="text-[#8a8a78] truncate">{info.descricao}</span>
+        </div>
+      );
+    }
+
+    function MarketBar({ simState }) {
+      const modCbot = simState.modCbot ?? 1;
+      const modPtax = simState.modPtax ?? 1;
+      const modBasis = simState.modBasis ?? 0;
+
+      const futuroAtual = INITIAL_MARKET.futuroJulho * modCbot * modPtax;
+      const basisAtual = INITIAL_MARKET.basisMT + modBasis;
+      const spotAtual = futuroAtual + basisAtual;
+      const ptaxAtual = INITIAL_MARKET.ptax * modPtax;
+
+      const spotDeltaPct = ((spotAtual - INITIAL_MARKET.spotMT) / INITIAL_MARKET.spotMT) * 100;
+      const basisDelta = basisAtual - INITIAL_MARKET.basisMT;
+      const ptaxDeltaPct = ((ptaxAtual - INITIAL_MARKET.ptax) / INITIAL_MARKET.ptax) * 100;
+
+      function arrow(num, treshold = 0.05) {
+        if (Math.abs(num) < treshold) return { sym: '→', color: '#7a7a68' };
+        if (num > 0) return { sym: '↑', color: '#8FB36B' };
+        return { sym: '↓', color: '#C97B3F' };
+      }
+
+      const spotA = arrow(spotDeltaPct, 0.1);
+      const basisA = arrow(basisDelta, 0.05);
+      const ptaxA = arrow(ptaxDeltaPct, 0.1);
+
+      return (
+        <div className="grid grid-cols-3 gap-2 text-[11px]">
+          <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2">
+            <div className="text-[#7a7a68] uppercase tracking-wider text-[9px] mb-0.5 flex items-center">
+              Spot MT
+              <InfoTip title="Preço Spot — Mato Grosso">
+                <p>Preço físico atual da saca em Sorriso/MT. É o que você embolsaria se vendesse hoje, sem hedge.</p>
+                <p><strong>Como é formado:</strong> Spot = Futuro B3 × (variação CBOT × variação PTAX) + Basis.</p>
+                <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Inicial</span><span>{fmtBRL(INITIAL_MARKET.spotMT, 2)}</span></div>
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Atual</span><span className="text-[#D4A574]">{fmtBRL(spotAtual, 2)}</span></div>
+                  <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Variação</span><span style={{ color: spotA.color }}>{spotDeltaPct > 0 ? '+' : ''}{spotDeltaPct.toFixed(1)}%</span></div>
+                </div>
+                <p className="text-[#b5b1a0] text-xs mt-3">É o número mais importante pra você. Quando o spot sobe, sua receita sobe (na parte não-travada).</p>
+              </InfoTip>
+            </div>
+            <div className="font-mono text-[#E8E4D5] text-sm">{spotAtual.toFixed(2)}</div>
+            <div className="font-mono text-[9px] mt-0.5" style={{ color: spotA.color }}>
+              {spotA.sym} {spotDeltaPct > 0 ? '+' : ''}{spotDeltaPct.toFixed(1)}%
+            </div>
+          </div>
+
+          <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2">
+            <div className="text-[#7a7a68] uppercase tracking-wider text-[9px] mb-0.5 flex items-center">
+              Basis
+              <InfoTip title="Basis — diferencial regional">
+                <p>Diferença entre o futuro B3 e o spot na sua região. No MT é negativo: a soja em Sorriso vale menos que a referência B3 por causa do frete até o porto.</p>
+                <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Inicial</span><span>{INITIAL_MARKET.basisMT.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Atual</span><span className="text-[#D4A574]">{basisAtual.toFixed(2)}</span></div>
+                  <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Variação</span><span style={{ color: basisA.color }}>{basisDelta > 0 ? '+' : ''}{basisDelta.toFixed(2)}</span></div>
+                </div>
+                <p className="text-[#b5b1a0] text-xs mt-3">Eventos de frete e logística mexem aqui. Basis mais negativo = produtor MT recebe menos.</p>
+              </InfoTip>
+            </div>
+            <div className="font-mono text-[#E8E4D5] text-sm">{basisAtual.toFixed(2)}</div>
+            <div className="font-mono text-[9px] mt-0.5" style={{ color: basisA.color }}>
+              {basisA.sym} {basisDelta > 0 ? '+' : ''}{basisDelta.toFixed(2)}
+            </div>
+          </div>
+
+          <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2">
+            <div className="text-[#7a7a68] uppercase tracking-wider text-[9px] mb-0.5 flex items-center">
+              PTAX
+              <InfoTip title="PTAX — câmbio USD/BRL">
+                <p>Taxa de câmbio oficial do Banco Central. Como a soja é commodity dolarizada, quando o PTAX sobe, sua saca em reais sobe junto.</p>
+                <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Inicial</span><span>{INITIAL_MARKET.ptax.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Atual</span><span className="text-[#D4A574]">{ptaxAtual.toFixed(2)}</span></div>
+                  <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Variação</span><span style={{ color: ptaxA.color }}>{ptaxDeltaPct > 0 ? '+' : ''}{ptaxDeltaPct.toFixed(1)}%</span></div>
+                </div>
+                <p className="text-[#b5b1a0] text-xs mt-3">Eventos de dólar movem aqui. Se você travou cedo, dólar caindo é bom; dólar subindo é perda de upside.</p>
+              </InfoTip>
+            </div>
+            <div className="font-mono text-[#E8E4D5] text-sm">{ptaxAtual.toFixed(2)}</div>
+            <div className="font-mono text-[9px] mt-0.5" style={{ color: ptaxA.color }}>
+              {ptaxA.sym} {ptaxDeltaPct > 0 ? '+' : ''}{ptaxDeltaPct.toFixed(1)}%
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     function FaseHeader({ fase, mes }) {
       const fases = [
@@ -746,7 +863,8 @@
       });
       const [simState, setSimState] = useState({
         modProd: 1.0,
-        modPreco: 1.0,
+        modCbot: 1.0,
+        modPtax: 1.0,
         modBasis: 0,
         custoExtra: 0
       });
@@ -777,7 +895,7 @@
       function resetar() {
         setFase('intro');
         setDecisoes({ area: 1000, capital: 6500000, pacote: null, financiamento: null, seguro: null, travado: null, plantio: null, manejo: null, venda: null });
-        setSimState({ modProd: 1.0, modPreco: 1.0, modBasis: 0, custoExtra: 0 });
+        setSimState({ modProd: 1.0, modCbot: 1.0, modPtax: 1.0, modBasis: 0, custoExtra: 0 });
         setEventLog([]);
         setFaseEventos([]);
       }
@@ -858,7 +976,9 @@
             {fase === 'setup-pacote' && (
               <div className="space-y-4">
                 <FaseHeader fase="setup" />
+                <MonthLine fase={fase} />
                 <StatBar decisoes={decisoes} simState={simState} />
+                <MarketBar simState={simState} />
                 <div className="mt-4">
                   <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 1 de 7</div>
                   <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
@@ -898,7 +1018,9 @@
             {fase === 'setup-fin' && (
               <div className="space-y-4">
                 <FaseHeader fase="setup" />
+                <MonthLine fase={fase} />
                 <StatBar decisoes={decisoes} simState={simState} />
+                <MarketBar simState={simState} />
                 <div className="mt-4">
                   <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 2 de 7</div>
                   <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
@@ -933,7 +1055,9 @@
             {fase === 'setup-seg' && (
               <div className="space-y-4">
                 <FaseHeader fase="setup" />
+                <MonthLine fase={fase} />
                 <StatBar decisoes={decisoes} simState={simState} />
+                <MarketBar simState={simState} />
                 <div className="mt-4">
                   <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 3 de 7</div>
                   <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
@@ -968,7 +1092,9 @@
             {fase === 'setup-trava' && (
               <div className="space-y-4">
                 <FaseHeader fase="setup" />
+                <MonthLine fase={fase} />
                 <StatBar decisoes={decisoes} simState={simState} />
+                <MarketBar simState={simState} />
                 <div className="mt-4">
                   <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 4 de 7</div>
                   <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
@@ -1005,7 +1131,9 @@
             {fase === 'setup-plantio' && (
               <div className="space-y-4">
                 <FaseHeader fase="plantio" />
+                <MonthLine fase={fase} />
                 <StatBar decisoes={decisoes} simState={simState} />
+                <MarketBar simState={simState} />
                 <div className="mt-4">
                   <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 5 de 7</div>
                   <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
@@ -1069,7 +1197,9 @@
             {fase === 'setup-manejo' && (
               <div className="space-y-4">
                 <FaseHeader fase="vegetativo" />
+                <MonthLine fase={fase} />
                 <StatBar decisoes={decisoes} simState={simState} />
+                <MarketBar simState={simState} />
                 <div className="mt-2">
                   <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 6 de 7</div>
                   <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
@@ -1109,7 +1239,9 @@
             {fase === 'setup-venda' && (
               <div className="space-y-4">
                 <FaseHeader fase="comercializacao" />
+                <MonthLine fase={fase} />
                 <StatBar decisoes={decisoes} simState={simState} />
+                <MarketBar simState={simState} />
                 <div className="mt-2">
                   <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 7 de 7</div>
                   <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
@@ -1160,7 +1292,7 @@
             )}
 
             {/* ====================== DRE FINAL ====================== */}
-            {fase === 'dre' && dre && <DREScreen dre={dre} decisoes={decisoes} eventLog={eventLog} onReset={resetar} />}
+            {fase === 'dre' && dre && <DREScreen dre={dre} decisoes={decisoes} eventLog={eventLog} onReset={resetar} simState={simState} />}
           </div>
         </div>
       );
@@ -1181,7 +1313,9 @@
       return (
         <div className="space-y-4">
           <FaseHeader fase={meta.fase} />
+          <MonthLine fase={fase} />
           <StatBar decisoes={decisoes} simState={simState} />
+          <MarketBar simState={simState} />
           <div className="mt-2">
             <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">{meta.mes}</div>
             <h2 className="font-display text-xl text-[#E8E4D5]">{meta.titulo}</h2>
@@ -1211,12 +1345,14 @@
     // ============================================================
     // TELA DE DRE FINAL
     // ============================================================
-    function DREScreen({ dre, decisoes, eventLog, onReset }) {
+    function DREScreen({ dre, decisoes, eventLog, onReset, simState }) {
       const positivo = dre.lucro > 0;
 
       return (
         <div className="space-y-5">
           <FaseHeader fase="dre" />
+          <MonthLine fase="dre" />
+          <MarketBar simState={simState} />
 
           <div className={`rounded-lg p-5 border ${positivo ? 'bg-gradient-to-br from-[#1f2517] to-[#15170e] border-[#8FB36B]/40' : 'bg-gradient-to-br from-[#25171a] to-[#15170e] border-[#C44536]/40'}`}>
             <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Resultado da safra 25/26</div>
