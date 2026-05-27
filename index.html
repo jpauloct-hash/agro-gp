@@ -128,6 +128,75 @@
     // Cada evento tem: fase em que pode ocorrer, função de probabilidade
     // dependente das decisões, e função de impacto sobre o estado.
 
+    // ============================================================
+    // REGIMES CLIMÁTICOS ENSO (El Niño / La Niña)
+    // ============================================================
+    const ENSO_REGIMES = {
+      ninho_forte: {
+        label: 'El Niño forte',
+        cor: '#4A8FBC',
+        descricaoCurta: 'Chuva acima do normal',
+        impactoMT: 'Cenário muito favorável pra produtividade no MT. Veranico improvável e enchimento garantido. Único risco: excesso de chuva atrapalhando a colheita.',
+        hedgeHint: 'Forecast favorável: hedge mais agressivo (50-70%) faz sentido. Risco de quebra é baixo.',
+        multipliers: { chuva_plantio: 1.4, veranico_floracao: 0.30, seca_enchimento: 0.30, chuva_excelente: 1.4, chuva_colheita: 1.6 }
+      },
+      ninho_fraco: {
+        label: 'El Niño fraco',
+        cor: '#6B9DBE',
+        descricaoCurta: 'Chuva levemente acima da média',
+        impactoMT: 'Geralmente positivo pro MT. Risco climático abaixo da média histórica, leve aumento de risco de chuva na colheita.',
+        hedgeHint: 'Cenário positivo. Hedge moderado (40-60%) é razoável.',
+        multipliers: { chuva_plantio: 1.15, veranico_floracao: 0.70, seca_enchimento: 0.70, chuva_excelente: 1.20, chuva_colheita: 1.25 }
+      },
+      neutro: {
+        label: 'ENSO Neutro',
+        cor: '#7a7a68',
+        descricaoCurta: 'Padrão climático normal',
+        impactoMT: 'Sem viés climático significativo. Probabilidades de eventos seguem média histórica do MT.',
+        hedgeHint: 'Cenário base. Hedge entre 30-50% é o padrão da maioria dos produtores.',
+        multipliers: { chuva_plantio: 1.0, veranico_floracao: 1.0, seca_enchimento: 1.0, chuva_excelente: 1.0, chuva_colheita: 1.0 }
+      },
+      ninha_fraca: {
+        label: 'La Niña fraca',
+        cor: '#C97B3F',
+        descricaoCurta: 'Chuva levemente abaixo da média',
+        impactoMT: 'Atenção redobrada com janela de plantio. Risco moderado de veranico em janeiro e seca leve no enchimento.',
+        hedgeHint: 'Cuidado. Reduza hedge pra 20-40%. Quebra parcial é possível.',
+        multipliers: { chuva_plantio: 0.85, veranico_floracao: 1.4, seca_enchimento: 1.4, chuva_excelente: 0.70, chuva_colheita: 0.80 }
+      },
+      ninha_forte: {
+        label: 'La Niña forte',
+        cor: '#C44536',
+        descricaoCurta: 'Padrão seco intenso',
+        impactoMT: 'Cenário desafiador. Veranico provável, déficit hídrico no enchimento, perdas históricas de 15–30% no MT.',
+        hedgeHint: 'Risco alto de quebra. Hedge mínimo (0-20%) — não se comprometa com entrega física que pode não ter.',
+        multipliers: { chuva_plantio: 0.60, veranico_floracao: 2.0, seca_enchimento: 2.2, chuva_excelente: 0.30, chuva_colheita: 0.50 }
+      }
+    };
+
+    // Sorteia regime + forecast com nível de confiança realista
+    function sortearENSO() {
+      const r = Math.random();
+      let actual;
+      if (r < 0.12) actual = 'ninho_forte';
+      else if (r < 0.32) actual = 'ninho_fraco';
+      else if (r < 0.62) actual = 'neutro';
+      else if (r < 0.82) actual = 'ninha_fraca';
+      else actual = 'ninha_forte';
+
+      const confidence = 0.60 + Math.random() * 0.32; // 60-92%
+      let forecast;
+      if (Math.random() < confidence) {
+        forecast = actual;
+      } else {
+        const ordered = ['ninho_forte', 'ninho_fraco', 'neutro', 'ninha_fraca', 'ninha_forte'];
+        const idx = ordered.indexOf(actual);
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        forecast = ordered[Math.max(0, Math.min(ordered.length - 1, idx + dir))];
+      }
+      return { actual, forecast, confidence: Math.round(confidence * 100) };
+    }
+
     const EVENTOS = [
       // --- PLANTIO ---
       {
@@ -308,10 +377,15 @@
     // SIMULAÇÃO
     // ============================================================
 
-    function rolarEventosDaFase(fase, decisoes, rng = Math.random) {
+    function rolarEventosDaFase(fase, decisoes, ensoActual, rng = Math.random) {
+      const regime = ENSO_REGIMES[ensoActual] || ENSO_REGIMES.neutro;
       return EVENTOS
         .filter(e => e.fase === fase)
-        .filter(e => rng() < e.prob(decisoes))
+        .filter(e => {
+          const baseProb = e.prob(decisoes);
+          const mult = regime.multipliers[e.id] ?? 1.0; // só climáticos têm multiplier
+          return rng() < baseProb * mult;
+        })
         .filter((e, _, arr) => {
           // Evita usda_baixa e usda_alta na mesma rodada
           if (e.id === 'usda_baixa' && arr.some(x => x.id === 'usda_alta')) return rng() < 0.5;
@@ -381,35 +455,45 @@
       const futuroFinal = INITIAL_MARKET.futuroJulho * simState.modCbot * simState.modPtax;
       const precoSpot = futuroFinal + basisFinal;
 
-      // Travamento antecipado: vendido ao preço inicial (futuro - basis original)
-      const sacasTravadas = sacasTotal * decisoes.travado;
+      // === HEDGE COM ENTREGA FÍSICA ===
+      // Sacas comprometidas no contrato são FIXAS, baseadas na produção ESPERADA (potencial do pacote),
+      // não na produção real. Se quebrar a safra, precisa COMPRAR no mercado pra cumprir o contrato.
+      const sacasEsperadas = prodPotencial * area;
+      const sacasComprometidas = sacasEsperadas * decisoes.travado;
       const precoTravado = INITIAL_MARKET.futuroJulho + INITIAL_MARKET.basisMT;
-      const receitaTravada = sacasTravadas * precoTravado;
+      const receitaTravada = sacasComprometidas * precoTravado;
 
-      // Sacas livres: vendidas conforme estratégia
-      const sacasLivres = sacasTotal - sacasTravadas;
+      // Backup: se prod real < sacas comprometidas, precisa comprar a diferença no spot atual
+      const sacasFaltantes = Math.max(0, sacasComprometidas - sacasTotal);
+      const custoBackup = sacasFaltantes * precoSpot;
+
+      // Sacas livres: o que sobrou da produção real depois de honrar o contrato
+      const sacasLivres = Math.max(0, sacasTotal - sacasComprometidas);
       let precoMedioLivre;
       if (decisoes.venda === 'colheita') {
         precoMedioLivre = precoSpot;
       } else if (decisoes.venda === 'armazenar') {
-        // 3 janelas: assume preço médio com modificadores diluídos + custo armazenagem
-        precoMedioLivre = precoSpot * 1.04 - 3.50; // R$3,50/sc armazenagem 4 meses
+        precoMedioLivre = precoSpot * 1.04 - 3.50;
       } else {
         precoMedioLivre = precoSpot * 1.02 - 1.80;
       }
       const receitaLivre = sacasLivres * precoMedioLivre;
 
       const receitaBruta = receitaTravada + receitaLivre + indenizacao;
-      const custoTotal = custoInsumos + custoManejo + custoSeguro + custoExtra + custoFinanceiro;
+      const custoTotal = custoInsumos + custoManejo + custoSeguro + custoExtra + custoFinanceiro + custoBackup;
       const lucro = receitaBruta - custoTotal;
       const lucroHa = lucro / area;
       const roe = lucro / decisoes.capital;
 
+      // Sacas "travadas" pra exibir = min(produção real, sacas comprometidas)
+      const sacasTravadas = Math.min(sacasTotal, sacasComprometidas);
+
       return {
-        prodPotencial, prodReal, sacasTotal,
-        sacasTravadas, sacasLivres, precoTravado, precoMedioLivre,
+        prodPotencial, prodReal, sacasTotal, sacasEsperadas,
+        sacasTravadas, sacasComprometidas, sacasFaltantes, sacasLivres,
+        precoTravado, precoMedioLivre,
         receitaTravada, receitaLivre, indenizacao, receitaBruta,
-        custoInsumos, custoManejo, custoSeguro, custoExtra, custoFinanceiro, custoTotal,
+        custoBackup, custoInsumos, custoManejo, custoSeguro, custoExtra, custoFinanceiro, custoTotal,
         lucro, lucroHa, roe,
         futuroFinal, precoSpot, basisFinal, prodFrustrada
       };
@@ -603,6 +687,38 @@
             <div className="font-mono text-[9px] mt-0.5" style={{ color: ptaxA.color }}>
               {ptaxA.sym} {ptaxDeltaPct > 0 ? '+' : ''}{ptaxDeltaPct.toFixed(1)}%
             </div>
+          </div>
+        </div>
+      );
+    }
+
+    function ForecastChip({ enso }) {
+      if (!enso || !enso.forecast) return null;
+      const f = ENSO_REGIMES[enso.forecast];
+      if (!f) return null;
+      return (
+        <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2.5 flex items-center gap-2.5">
+          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.cor }} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-[10px] uppercase tracking-widest text-[#7a7a68] font-mono">Forecast safra</span>
+              <span className="text-sm font-medium" style={{ color: f.cor }}>{f.label}</span>
+              <span className="text-[10px] font-mono text-[#7a7a68]">· confiança {enso.confidence}%</span>
+              <InfoTip title={`Forecast climático: ${f.label}`}>
+                <p><strong>O que significa:</strong> {f.descricaoCurta}.</p>
+                <p><strong>Impacto no MT:</strong> {f.impactoMT}</p>
+                <p><strong>O que isso recomenda pro hedge:</strong> {f.hedgeHint}</p>
+                <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                  <div className="text-[#7a7a68] text-[9px] uppercase tracking-wider">Multiplicadores de evento neste regime</div>
+                  {Object.entries(f.multipliers).map(([k, v]) => (
+                    <div key={k} className="flex justify-between"><span className="text-[#8a8a78]">{k.replace(/_/g, ' ')}</span><span className={v > 1 ? 'text-[#C97B3F]' : v < 1 ? 'text-[#8FB36B]' : 'text-[#E8E4D5]'}>×{v.toFixed(2)}</span></div>
+                  ))}
+                </div>
+                <p className="text-[#b5b1a0] text-xs mt-3">Confiança de {enso.confidence}% significa que há {100 - enso.confidence}% de chance do regime real ser diferente do previsto. Forecast nunca é certo.</p>
+                <p className="text-[#b5b1a0] text-xs">Forecasts ENSO reais saem do CFS/NOAA, INMET e ECMWF, atualizados mensalmente.</p>
+              </InfoTip>
+            </div>
+            <div className="text-[11px] text-[#8a8a78] leading-tight mt-0.5">{f.descricaoCurta}</div>
           </div>
         </div>
       );
@@ -850,6 +966,7 @@
 
     function AgroGP() {
       const [fase, setFase] = useState('intro');
+      const [enso, setEnso] = useState({ actual: null, forecast: null, confidence: null });
       const [decisoes, setDecisoes] = useState({
         area: 1000,
         capital: 6500000,
@@ -880,7 +997,7 @@
         // Se for tela de eventos, rola eventos da fase base
         if (proxima.endsWith('-eventos')) {
           const faseBase = proxima.replace('-eventos', '');
-          const novos = rolarEventosDaFase(faseBase, decisoes);
+          const novos = rolarEventosDaFase(faseBase, decisoes, enso.actual);
           const novoState = { ...simState };
           novos.forEach(e => e.aplicar(novoState, decisoes));
           setSimState(novoState);
@@ -896,6 +1013,7 @@
         setFase('intro');
         setDecisoes({ area: 1000, capital: 6500000, pacote: null, financiamento: null, seguro: null, travado: null, plantio: null, manejo: null, venda: null });
         setSimState({ modProd: 1.0, modCbot: 1.0, modPtax: 1.0, modBasis: 0, custoExtra: 0 });
+        setEnso({ actual: null, forecast: null, confidence: null });
         setEventLog([]);
         setFaseEventos([]);
       }
@@ -964,7 +1082,7 @@
                 </div>
                 <MercadoSnap />
                 <button
-                  onClick={() => setFase('setup-pacote')}
+                  onClick={() => { setEnso(sortearENSO()); setFase('setup-pacote'); }}
                   className="w-full bg-[#D4A574] hover:bg-[#E8B547] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
                 >
                   começar a safra <ArrowRight size={16} />
@@ -977,6 +1095,7 @@
               <div className="space-y-4">
                 <FaseHeader fase="setup" />
                 <MonthLine fase={fase} />
+                <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
                 <div className="mt-4">
@@ -1019,6 +1138,7 @@
               <div className="space-y-4">
                 <FaseHeader fase="setup" />
                 <MonthLine fase={fase} />
+                <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
                 <div className="mt-4">
@@ -1056,6 +1176,7 @@
               <div className="space-y-4">
                 <FaseHeader fase="setup" />
                 <MonthLine fase={fase} />
+                <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
                 <div className="mt-4">
@@ -1093,6 +1214,7 @@
               <div className="space-y-4">
                 <FaseHeader fase="setup" />
                 <MonthLine fase={fase} />
+                <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
                 <div className="mt-4">
@@ -1100,11 +1222,12 @@
                   <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
                     Travamento antecipado
                     <InfoTip title="Travar preço antes da colheita">
-                      <p>Você está em agosto. Ainda nem plantou. Mas pode "vender" sua soja hoje, no papel, pelo preço atual do mercado — prometendo entregar uma quantidade fixa quando colher.</p>
-                      <p>É feito com <strong className="text-[#D4A574]">contratos a termo</strong> (com a trading) ou <strong className="text-[#D4A574]">futuros da B3</strong> (no mercado financeiro). No simulador, fixa a {fmtBRL(INITIAL_MARKET.futuroJulho + INITIAL_MARKET.basisMT, 2)}/sc.</p>
-                      <p><strong className="text-[#D4A574]">Vantagem</strong>: você garante margem. Se a soja despencar, você está protegido.</p>
-                      <p><strong className="text-[#D4A574]">Desvantagem</strong>: se a soja subir, você perdeu o ganho. Está vendido a R$118 mesmo se o mercado for pra R$140.</p>
-                      <p className="text-[#b5b1a0] text-xs mt-3">Travar muito = postura conservadora. Travar pouco = aposta no mercado. A maioria dos produtores trava entre 30% e 50% antes do plantio.</p>
+                      <p>Você está em agosto. Ainda nem plantou. Mas pode "vender" sua soja hoje, no papel, pelo preço atual do mercado — prometendo entregar uma <strong>quantidade fixa</strong> de sacas quando colher.</p>
+                      <p>É feito com <strong className="text-[#D4A574]">contratos a termo</strong> (com a trading) ou <strong className="text-[#D4A574]">futuros da B3</strong>. No simulador, fixa a {fmtBRL(INITIAL_MARKET.futuroJulho + INITIAL_MARKET.basisMT, 2)}/sc.</p>
+                      <p><strong className="text-[#D4A574]">Quantidade comprometida</strong>: % escolhido × produção potencial do pacote × área. Ex.: 50% × 62 sc/ha × 1.000 ha = 31.000 sc comprometidas.</p>
+                      <p><strong className="text-[#D4A574]">Se a safra for boa</strong>: você entrega as sacas comprometidas e o que sobrou vende no spot.</p>
+                      <p><strong className="text-[#C44536]">Se quebrar a safra</strong>: você ainda DEVE entregar a quantidade fixa. Se produziu menos, precisa COMPRAR soja no mercado pra cumprir o contrato — geralmente a preço alto (quebra de safra puxa preço pra cima). Esse é o "risco de backup".</p>
+                      <p className="text-[#b5b1a0] text-xs mt-3">É por isso que produtores ajustam o nível de travamento conforme o forecast climático. Forecast favorável → trava mais (50-70%). Forecast ruim → trava menos (0-30%) pra evitar backup caro.</p>
                     </InfoTip>
                   </h2>
                   <p className="text-[#8a8a78] text-sm leading-snug">Fixar preço hoje em <span className="font-mono text-[#D4A574]">{fmtBRL(INITIAL_MARKET.futuroJulho + INITIAL_MARKET.basisMT, 2)}/sc</span>. Garante margem mas trava upside. Você ainda não plantou.</p>
@@ -1132,6 +1255,7 @@
               <div className="space-y-4">
                 <FaseHeader fase="plantio" />
                 <MonthLine fase={fase} />
+                <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
                 <div className="mt-4">
@@ -1179,6 +1303,7 @@
                 decisoes={decisoes}
                 simState={simState}
                 eventos={faseEventos}
+                enso={enso}
                 onContinuar={() => {
                   const mapa = {
                     'plantio-eventos': 'setup-manejo',
@@ -1198,6 +1323,7 @@
               <div className="space-y-4">
                 <FaseHeader fase="vegetativo" />
                 <MonthLine fase={fase} />
+                <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
                 <div className="mt-2">
@@ -1240,6 +1366,7 @@
               <div className="space-y-4">
                 <FaseHeader fase="comercializacao" />
                 <MonthLine fase={fase} />
+                <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
                 <div className="mt-2">
@@ -1292,7 +1419,7 @@
             )}
 
             {/* ====================== DRE FINAL ====================== */}
-            {fase === 'dre' && dre && <DREScreen dre={dre} decisoes={decisoes} eventLog={eventLog} onReset={resetar} simState={simState} />}
+            {fase === 'dre' && dre && <DREScreen dre={dre} decisoes={decisoes} eventLog={eventLog} onReset={resetar} simState={simState} enso={enso} />}
           </div>
         </div>
       );
@@ -1301,7 +1428,7 @@
     // ============================================================
     // TELA DE EVENTOS DE FASE
     // ============================================================
-    function FaseEventosScreen({ fase, decisoes, simState, eventos, onContinuar, labelBotao }) {
+    function FaseEventosScreen({ fase, decisoes, simState, eventos, onContinuar, labelBotao, enso }) {
       const titulos = {
         'plantio-eventos': { titulo: 'Plantio em andamento', mes: 'Set–Nov', fase: 'plantio' },
         'vegetativo-eventos': { titulo: 'Vegetativo / Floração', mes: 'Dez–Jan', fase: 'vegetativo' },
@@ -1314,6 +1441,7 @@
         <div className="space-y-4">
           <FaseHeader fase={meta.fase} />
           <MonthLine fase={fase} />
+          <ForecastChip enso={enso} />
           <StatBar decisoes={decisoes} simState={simState} />
           <MarketBar simState={simState} />
           <div className="mt-2">
@@ -1345,13 +1473,14 @@
     // ============================================================
     // TELA DE DRE FINAL
     // ============================================================
-    function DREScreen({ dre, decisoes, eventLog, onReset, simState }) {
+    function DREScreen({ dre, decisoes, eventLog, onReset, simState, enso }) {
       const positivo = dre.lucro > 0;
 
       return (
         <div className="space-y-5">
           <FaseHeader fase="dre" />
           <MonthLine fase="dre" />
+          <ForecastChip enso={enso} />
           <MarketBar simState={simState} />
 
           <div className={`rounded-lg p-5 border ${positivo ? 'bg-gradient-to-br from-[#1f2517] to-[#15170e] border-[#8FB36B]/40' : 'bg-gradient-to-br from-[#25171a] to-[#15170e] border-[#C44536]/40'}`}>
@@ -1400,9 +1529,24 @@
               </InfoTip>
             </h3>
             <div className="bg-[#15170e] border border-[#2a2c1f] rounded">
-              <RowDRE label="Sacas totais produzidas" value={fmtSacas(dre.sacasTotal)} mono />
-              <RowDRE label={`Travado antecipado (${(decisoes.travado*100).toFixed(0)}%)`} sub={`${fmtSacas(dre.sacasTravadas)} × ${fmtBRL(dre.precoTravado, 2)}`} value={fmtBRL(dre.receitaTravada)} />
-              <RowDRE label="Físico vendido" sub={`${fmtSacas(dre.sacasLivres)} × ${fmtBRL(dre.precoMedioLivre, 2)}`} value={fmtBRL(dre.receitaLivre)} />
+              <RowDRE label="Sacas produzidas" sub={`${dre.prodReal.toFixed(1)} sc/ha × ${decisoes.area} ha`} value={fmtSacas(dre.sacasTotal)} mono />
+              <RowDRE
+                label={<span className="inline-flex items-center">Travado antecipado ({(decisoes.travado*100).toFixed(0)}%)
+                  <InfoTip title="Receita do travamento antecipado">
+                    <p>Você comprometeu entregar <strong>{fmtSacas(dre.sacasComprometidas)}</strong> ao preço fixado em agosto.</p>
+                    <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                      <div className="flex justify-between"><span className="text-[#8a8a78]">Esperado produzir</span><span>{fmtSacas(dre.sacasEsperadas)}</span></div>
+                      <div className="flex justify-between"><span className="text-[#8a8a78]">× {(decisoes.travado*100).toFixed(0)}% travado</span><span>{fmtSacas(dre.sacasComprometidas)}</span></div>
+                      <div className="flex justify-between"><span className="text-[#8a8a78]">× preço travado</span><span>{fmtBRL(dre.precoTravado, 2)}</span></div>
+                      <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Receita</span><span className="text-[#D4A574]">{fmtBRL(dre.receitaTravada)}</span></div>
+                    </div>
+                    <p className="text-[#b5b1a0] text-xs mt-3">O contrato é quantidade fixa — não importa o que você efetivamente produziu, o comprador exige as sacas comprometidas.</p>
+                  </InfoTip>
+                </span>}
+                sub={`${fmtSacas(dre.sacasComprometidas)} × ${fmtBRL(dre.precoTravado, 2)}`}
+                value={fmtBRL(dre.receitaTravada)}
+              />
+              <RowDRE label="Físico livre vendido" sub={`${fmtSacas(dre.sacasLivres)} × ${fmtBRL(dre.precoMedioLivre, 2)}`} value={fmtBRL(dre.receitaLivre)} />
               {dre.indenizacao > 0 && <RowDRE label="Indenização de seguro" value={fmtBRL(dre.indenizacao)} positivo />}
               <RowDRE label="Receita bruta" value={fmtBRL(dre.receitaBruta)} total />
             </div>
@@ -1492,6 +1636,25 @@
                 </span>}
                 value={`(${fmtBRL(dre.custoFinanceiro)})`} negativo
               />
+              {dre.custoBackup > 0 && (
+                <RowDRE
+                  label={<span className="inline-flex items-center text-[#C44536]">⚠ Backup contratual
+                    <InfoTip title="Backup contratual — quebra de hedge">
+                      <p>Você travou mais sacas do que conseguiu produzir. Pra honrar o contrato, teve que <strong>comprar soja no mercado</strong> ao preço spot atual.</p>
+                      <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                        <div className="flex justify-between"><span className="text-[#8a8a78]">Comprometido entregar</span><span>{fmtSacas(dre.sacasComprometidas)}</span></div>
+                        <div className="flex justify-between"><span className="text-[#8a8a78]">Produziu</span><span>{fmtSacas(dre.sacasTotal)}</span></div>
+                        <div className="flex justify-between"><span className="text-[#C44536]">Faltou</span><span className="text-[#C44536]">{fmtSacas(dre.sacasFaltantes)}</span></div>
+                        <div className="flex justify-between"><span className="text-[#8a8a78]">× preço spot</span><span>{fmtBRL(dre.precoSpot, 2)}</span></div>
+                        <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#C44536]">Backup</span><span className="text-[#C44536]">{fmtBRL(dre.custoBackup)}</span></div>
+                      </div>
+                      <p className="text-[#b5b1a0] text-xs mt-3">Isso é o "preço" de hedge agressivo em ano ruim. Se o forecast indicava risco e você travou mais de 50% mesmo assim, o resultado é esse.</p>
+                    </InfoTip>
+                  </span>}
+                  value={`(${fmtBRL(dre.custoBackup)})`}
+                  negativo
+                />
+              )}
               <RowDRE label="Custo total" value={`(${fmtBRL(dre.custoTotal)})`} total />
             </div>
           </div>
