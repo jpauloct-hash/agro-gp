@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0c07" />
+  <title>Agro GP — Simulador da Cadeia do Agro</title>
+
+  <!-- Tailwind via Play CDN (JIT mode, scaneia DOM dinamicamente) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fontes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&family=Geist:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    html, body { margin: 0; padding: 0; background: #0a0c07; }
+    body { font-family: 'Geist', 'Inter', system-ui, sans-serif; color: #E8E4D5; -webkit-tap-highlight-color: transparent; }
+    .font-display { font-family: 'Fraunces', serif; font-feature-settings: 'ss01'; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* === TOOLTIP: tudo preto sobre branco, força sobre qualquer cor inline === */
+    .tooltip-content,
+    .tooltip-content p,
+    .tooltip-content span,
+    .tooltip-content div,
+    .tooltip-content em { color: #000 !important; }
+    .tooltip-content strong { color: #6b4d1f !important; font-weight: 700 !important; }
+    .tooltip-content em { font-style: italic; color: #3a3a2e !important; }
+    .tooltip-content [class*="bg-[#0f110a]"],
+    .tooltip-content [class*="bg-[#15170e]"],
+    .tooltip-content [class*="bg-[#1a1c12]"] {
+      background-color: #f0ede2 !important;
+      border: 1px solid #c8c4b5 !important;
+    }
+    .tooltip-content [class*="border-[#2a2c1f]"] { border-color: #c8c4b5 !important; }
+    .tooltip-content [class*="text-[#8FB36B]"] { color: #2F5A1E !important; }
+    .tooltip-content [class*="text-[#C97B3F]"] { color: #8B3A0F !important; }
+    .tooltip-content [class*="text-[#C44536]"] { color: #8B1F1F !important; }
+
+    /* Loading state */
+    #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0c07; color: #D4A574; font-family: 'Fraunces', serif; gap: 12px; }
+    #loading .spinner { width: 32px; height: 32px; border: 3px solid #2a2c1f; border-top-color: #D4A574; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+
+  <!-- Importmap: resolve ESM imports via esm.sh -->
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18.2.0",
+      "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+      "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?deps=react@18.2.0",
+      "lucide-react": "https://esm.sh/lucide-react@0.379.0?deps=react@18.2.0"
+    }
+  }
+  </script>
+
+  <!-- Babel standalone pra transpilar JSX no navegador -->
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+</head>
+
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div style="font-style:italic; font-size:18px;">Agro GP</div>
+    <div style="font-size:12px; color:#7a7a68; font-family:'Geist',sans-serif;">carregando safra...</div>
+  </div>
+  <div id="root"></div>
+
+  <script type="text/babel" data-type="module" data-presets="react">
+    import { createRoot as __createRoot } from 'react-dom/client';
+
+/* === COLE AQUI O CONTEÚDO DO COMPONENTE === */
+/* placeholder — será substituído pelo bash */
+    import React, { useState, useMemo } from 'react';
+    import { Sprout, Wallet, CloudRain, Bug, TrendingUp, Truck, Wheat, AlertTriangle, CheckCircle2, ArrowRight, RotateCcw, Sun, Droplets, DollarSign, Calendar, Info, X } from 'lucide-react';
+
+    // ============================================================
+    // AGRO GP — MVP Soja Mato Grosso · Safra 2025/26
+    // ============================================================
+
+    // --- Dados de mercado iniciais (snapshot plausível nov/2025) ---
+    const INITIAL_MARKET = {
+      futuroJulho: 134.50,   // R$/sc 60kg — SFI B3 jul/26
+      basisMT: -16.50,       // desconto Sorriso vs Paranaguá
+      spotMT: 118.00,        // ≈ futuro + basis
+      ptax: 5.38,
+      selic: 11.25,
+      cbot: 10.65            // USD/bushel
+    };
+
+    // --- Pacotes tecnológicos ---
+    const PACOTES = {
+      basico:  { prod: 52, custoHa: 4400, label: 'Básico',  desc: 'Genética padrão, adubação mínima, defensivos genéricos.' },
+      medio:   { prod: 62, custoHa: 5550, label: 'Médio',   desc: 'Variedade RR, adubação calibrada, fungicida preventivo.' },
+      premium: { prod: 72, custoHa: 6750, label: 'Premium', desc: 'Intacta RR2 + tratamento industrial, programa fito completo.' }
+    };
+
+    const FINANCIAMENTOS = {
+      avista:  { custoFin: 0.00, label: 'À vista',     desc: 'Drena 100% do capital de giro. Sem juros.' },
+      pronamp: { custoFin: 0.085, label: 'Pronamp',    desc: 'Custo financeiro ~8,5% até a colheita.' },
+      barter:  { custoFin: 0.115, label: 'Barter (sacas)', desc: 'Paga em sacas no fim. ~11,5% efetivo. Trava sacas a preço de hoje.' }
+    };
+
+    const SEGUROS = {
+      sem:     { custoPct: 0.000, cobertura: 0.00, label: 'Sem seguro',  desc: 'Você assume toda a cauda de risco.' },
+      proagro: { custoPct: 0.038, cobertura: 0.65, label: 'PROAGRO',     desc: 'Cobre ~65% do custo em caso de quebra.' },
+      privado: { custoPct: 0.072, cobertura: 0.85, label: 'Privado top', desc: 'Cobre ~85% do custo. Mais caro.' }
+    };
+
+    const JANELAS = {
+      cedo:   { label: 'Cedo (20/set–15/out)',  riscoVeranico: 0.40, riscoChuvaPlantio: 0.28, modProd: 1.00, abreSafrinha: true },
+      medio:  { label: 'Médio (16/out–10/nov)', riscoVeranico: 0.22, riscoChuvaPlantio: 0.14, modProd: 1.03, abreSafrinha: true },
+      tarde:  { label: 'Tarde (após 10/nov)',   riscoVeranico: 0.10, riscoChuvaPlantio: 0.06, modProd: 0.93, abreSafrinha: false }
+    };
+
+    const MANEJOS = {
+      reativo:    { custoHa: 0,   eficacia: 0.40, label: 'Reativo',          desc: 'Trata só quando aparece. Mais barato, mais arriscado.' },
+      preventivo: { custoHa: 450, eficacia: 0.78, label: 'Preventivo padrão', desc: 'Calendário fixo de fungicida e inseticida.' },
+      premium:    { custoHa: 820, eficacia: 0.93, label: 'Programa premium',  desc: 'Monitoramento intensivo + fungicidas top.' }
+    };
+
+    // ============================================================
+    // MOTOR DE EVENTOS PROBABILÍSTICOS
+    // ============================================================
+    // Cada evento tem: fase em que pode ocorrer, função de probabilidade
+    // dependente das decisões, e função de impacto sobre o estado.
+
+    const EVENTOS = [
+      // --- PLANTIO ---
+      {
+        id: 'chuva_plantio',
+        fase: 'plantio',
+        prob: (d) => JANELAS[d.plantio].riscoChuvaPlantio,
+        titulo: 'Chuva atrasa o plantio',
+        icon: CloudRain,
+        tipo: 'climatico',
+        desc: 'Janela apertada. Parte da área foi replantada e o stand ficou irregular.',
+        impactoTexto: () => '−6% na produtividade · +R$ 180/ha de custo extra',
+        explicacao: 'Chuva intensa no plantio força replantio em parte da área. O stand fica desigual (algumas áreas com mais plantas, outras com menos) e o potencial cai. O replantio gera custo extra de semente, defensivo e operação.',
+        aplicar: (s) => { s.modProd *= 0.94; s.custoExtra += 180; }
+      },
+      // --- VEGETATIVO / FLORAÇÃO ---
+      {
+        id: 'veranico_floracao',
+        fase: 'vegetativo',
+        prob: (d) => JANELAS[d.plantio].riscoVeranico,
+        titulo: 'Veranico de 16 dias na floração',
+        icon: Sun,
+        tipo: 'climatico',
+        desc: 'Janeiro travou. Aborto de flores e vagens nas áreas mais arenosas.',
+        impactoTexto: () => '−18% na produtividade',
+        explicacao: 'A floração é o momento mais crítico da soja. Veranico (período seco de 10–20 dias dentro da estação chuvosa) com calor alto na floração faz a planta abortar flores e vagens. Sem flor, sem vagem. Sem vagem, sem grão. A perda é definitiva — manejo posterior não recupera.',
+        aplicar: (s) => { s.modProd *= 0.82; }
+      },
+      {
+        id: 'ferrugem',
+        fase: 'vegetativo',
+        prob: () => 0.55,
+        titulo: 'Pressão alta de ferrugem asiática',
+        icon: Bug,
+        tipo: 'fito',
+        desc: 'Esporos detectados na região. Manejo fito faz diferença agora.',
+        impactoTexto: (d) => `−${(22 * (1 - MANEJOS[d.manejo].eficacia)).toFixed(1)}% na produtividade (eficácia do seu manejo: ${(MANEJOS[d.manejo].eficacia*100).toFixed(0)}%)`,
+        explicacao: 'A ferrugem asiática (Phakopsora pachyrhizi) é um fungo que ataca as folhas da soja, impedindo a fotossíntese. Sem folha viva, a planta não enche o grão. É o evento que mais justifica investir em manejo — reativo perde ~13%, premium perde só 1,5%.',
+        aplicar: (s, d) => { s.modProd *= (1 - 0.22 * (1 - MANEJOS[d.manejo].eficacia)); }
+      },
+      {
+        id: 'lagarta',
+        fase: 'vegetativo',
+        prob: () => 0.45,
+        titulo: 'Surto de Helicoverpa',
+        icon: Bug,
+        tipo: 'fito',
+        desc: 'Lagartas atacando vagens. Eficácia do manejo determina a perda.',
+        impactoTexto: (d) => `−${(14 * (1 - MANEJOS[d.manejo].eficacia)).toFixed(1)}% na produtividade`,
+        explicacao: 'Helicoverpa armigera é uma das principais pragas da soja. As lagartas comem folhas e vagens em formação — cada vagem destruída é uma saca a menos no caminhão. Cultivares Intacta RR2 PRO têm resistência genética; cultivares convencionais dependem 100% do inseticida.',
+        aplicar: (s, d) => { s.modProd *= (1 - 0.14 * (1 - MANEJOS[d.manejo].eficacia)); }
+      },
+      // --- ENCHIMENTO DE GRÃO ---
+      {
+        id: 'seca_enchimento',
+        fase: 'enchimento',
+        prob: (d) => d.plantio === 'cedo' ? 0.18 : d.plantio === 'medio' ? 0.12 : 0.22,
+        titulo: 'Seca no enchimento de grão',
+        icon: Sun,
+        tipo: 'climatico',
+        desc: 'Fevereiro com déficit hídrico. Grãos enrugados, peso baixo.',
+        impactoTexto: () => '−12% na produtividade',
+        explicacao: 'Sem água na fase de enchimento, os grãos ficam pequenos e enrugados ("chochos"). Peso baixo significa menos sacas no fim — o número de vagens até pode ser normal, mas cada vagem tem menos volume.',
+        aplicar: (s) => { s.modProd *= 0.88; }
+      },
+      {
+        id: 'percevejo',
+        fase: 'enchimento',
+        prob: () => 0.40,
+        titulo: 'Percevejo na fase final',
+        icon: Bug,
+        tipo: 'fito',
+        desc: 'Pressão de percevejo marrom. Compromete qualidade do grão.',
+        impactoTexto: (d) => `−${(8 * (1 - MANEJOS[d.manejo].eficacia)).toFixed(1)}% na produtividade`,
+        explicacao: 'O percevejo marrom suga o grão em formação, deixando-o "manchado" ou "chocho". O dano por planta é menor que ferrugem, mas afeta qualidade do lote (e gera desconto no preço). Controle exige acompanhamento da fase final.',
+        aplicar: (s, d) => { s.modProd *= (1 - 0.08 * (1 - MANEJOS[d.manejo].eficacia)); }
+      },
+      {
+        id: 'chuva_excelente',
+        fase: 'enchimento',
+        prob: () => 0.25,
+        titulo: 'Chuvas regulares no enchimento',
+        icon: Droplets,
+        tipo: 'positivo',
+        desc: 'Distribuição perfeita de chuva. Grãos cheios, peso acima da média.',
+        impactoTexto: () => '+8% na produtividade',
+        explicacao: 'Quando chove na hora certa, sem excesso, o enchimento de grão fica perfeito. Grãos cheios, peso alto, sacas extras. É o cenário que faz a diferença entre uma safra boa e uma safra excepcional.',
+        aplicar: (s) => { s.modProd *= 1.08; }
+      },
+      // --- COLHEITA ---
+      {
+        id: 'frete_subiu',
+        fase: 'colheita',
+        prob: () => 0.50,
+        titulo: 'Frete Sorriso–Santos subiu 28%',
+        icon: Truck,
+        tipo: 'logistico',
+        desc: 'Pico da safra brasileira. Caminhão sumiu.',
+        impactoTexto: () => '−R$ 4,50 no basis MT (preço local cai)',
+        explicacao: 'Sorriso fica a ~2.000 km do porto de Santos. Quando a colheita pico do Brasil acontece, todo mundo precisa de caminhão ao mesmo tempo e o frete dispara. Esse custo é descontado direto do preço pago ao produtor (basis fica mais negativo).',
+        aplicar: (s) => { s.modBasis -= 4.50; }
+      },
+      {
+        id: 'chuva_colheita',
+        fase: 'colheita',
+        prob: () => 0.30,
+        titulo: 'Chuva na colheita',
+        icon: CloudRain,
+        tipo: 'climatico',
+        desc: 'Atraso e desconto por umidade. Parte do lote foi para grão ardido.',
+        impactoTexto: () => '−4% produtividade · −3% no preço (desconto por umidade)',
+        explicacao: 'Chuva na colheita atrasa as máquinas (que não entram em solo molhado) e degrada o grão (umidade alta + tempo no campo = grão ardido). O comprador desconta tanto pelo teor de umidade quanto pelas impurezas.',
+        aplicar: (s) => { s.modProd *= 0.96; s.modPreco *= 0.97; }
+      },
+      // --- COMERCIALIZAÇÃO ---
+      {
+        id: 'usda_baixa',
+        fase: 'comercializacao',
+        prob: () => 0.35,
+        titulo: 'USDA revisa safra americana pra cima',
+        icon: TrendingUp,
+        tipo: 'mercado',
+        desc: 'Chicago cai 6%. Físico no MT acompanha com defasagem.',
+        impactoTexto: () => '−6% no preço',
+        explicacao: 'O USDA (Departamento de Agricultura dos EUA) publica relatórios mensais (WASDE) sobre produção e estoques. É a "ata do Copom" do agro mundial. Quando o USDA aumenta a estimativa da safra americana, a soja em Chicago cai — e a soja brasileira segue com defasagem de horas.',
+        aplicar: (s) => { s.modPreco *= 0.94; }
+      },
+      {
+        id: 'usda_alta',
+        fase: 'comercializacao',
+        prob: () => 0.30,
+        titulo: 'Quebra de safra na Argentina',
+        icon: TrendingUp,
+        tipo: 'positivo',
+        desc: 'Prêmio brasileiro dispara. Janela rara pra vender bem.',
+        impactoTexto: () => '+9% no preço',
+        explicacao: 'A Argentina é o terceiro maior produtor mundial. Quando ela quebra (seca, geada, conflito político), a oferta global aperta e o Brasil vira o "salvador da pátria". O prêmio de exportação dispara e os preços sobem no físico inteiro do país.',
+        aplicar: (s) => { s.modPreco *= 1.09; }
+      },
+      {
+        id: 'dolar_sobe',
+        fase: 'comercializacao',
+        prob: () => 0.30,
+        titulo: 'Dólar sobe 7% em 30 dias',
+        icon: DollarSign,
+        tipo: 'mercado',
+        desc: 'Soja em reais fica mais cara. Bom pra quem ainda não vendeu.',
+        impactoTexto: () => '+5% no preço (cotação em R$)',
+        explicacao: 'Soja é uma commodity dolarizada. O preço lá fora (Chicago) é em dólar. Quando o dólar sobe, sua saca em reais sobe junto, mesmo que Chicago não tenha mudado. Quem ainda não vendeu agradece; quem travou cedo perde a janela.',
+        aplicar: (s) => { s.modPreco *= 1.05; }
+      },
+      {
+        id: 'dolar_cai',
+        fase: 'comercializacao',
+        prob: () => 0.25,
+        titulo: 'Dólar cai 6%',
+        icon: DollarSign,
+        tipo: 'mercado',
+        desc: 'BC mais firme e fluxo positivo. Quem travou agradece.',
+        impactoTexto: () => '−5% no preço (cotação em R$)',
+        explicacao: 'Dólar mais baixo significa menos reais por saca, mesmo com Chicago estável. É exatamente o cenário em que quem travou antecipado se dá bem — eles fixaram o preço em reais lá atrás, antes da queda.',
+        aplicar: (s) => { s.modPreco *= 0.95; }
+      },
+      {
+        id: 'b15',
+        fase: 'comercializacao',
+        prob: () => 0.20,
+        titulo: 'Governo confirma B15 antes do previsto',
+        icon: TrendingUp,
+        tipo: 'positivo',
+        desc: 'Demanda de óleo de soja sobe. Esmagadoras pagam mais.',
+        impactoTexto: () => '+3% no preço',
+        explicacao: 'O programa nacional de biodiesel define que parte do diesel vendido no Brasil deve conter óleo vegetal — hoje 14% (B14), com plano de subir pra 15% (B15). Mais óleo no diesel = mais demanda por óleo de soja = esmagadoras pagam mais pelo grão pra produzir o óleo.',
+        aplicar: (s) => { s.modPreco *= 1.03; }
+      }
+    ];
+
+    // ============================================================
+    // SIMULAÇÃO
+    // ============================================================
+
+    function rolarEventosDaFase(fase, decisoes, rng = Math.random) {
+      return EVENTOS
+        .filter(e => e.fase === fase)
+        .filter(e => rng() < e.prob(decisoes))
+        .filter((e, _, arr) => {
+          // Evita usda_baixa e usda_alta na mesma rodada
+          if (e.id === 'usda_baixa' && arr.some(x => x.id === 'usda_alta')) return rng() < 0.5;
+          if (e.id === 'dolar_sobe' && arr.some(x => x.id === 'dolar_cai')) return rng() < 0.5;
+          return true;
+        });
+    }
+
+    // Helper: custos comprometidos até o momento atual (qualquer fase do jogo)
+    function calcularCustosAcumulados(decisoes, simState) {
+      const area = decisoes.area;
+      const custos = { insumos: 0, manejo: 0, seguro: 0, extras: 0, financeiro: 0, total: 0 };
+
+      if (decisoes.pacote) custos.insumos = PACOTES[decisoes.pacote].custoHa * area;
+      if (decisoes.manejo) custos.manejo = MANEJOS[decisoes.manejo].custoHa * area;
+      if (decisoes.seguro && decisoes.pacote) {
+        custos.seguro = SEGUROS[decisoes.seguro].custoPct * PACOTES[decisoes.pacote].custoHa * area;
+      }
+      custos.extras = (simState.custoExtra || 0) * area;
+      if (decisoes.financiamento && (custos.insumos + custos.manejo) > 0) {
+        custos.financeiro = FINANCIAMENTOS[decisoes.financiamento].custoFin * (custos.insumos + custos.manejo);
+      }
+      custos.total = custos.insumos + custos.manejo + custos.seguro + custos.extras + custos.financeiro;
+
+      // Caixa: seguro e extras sempre saem do bolso. Insumos+manejo só saem se for "à vista".
+      let caixaPago = custos.seguro + custos.extras;
+      if (decisoes.financiamento === 'avista') {
+        caixaPago += custos.insumos + custos.manejo;
+      }
+      const caixa = decisoes.capital - caixaPago;
+      const dividaAcumulada = custos.total - caixaPago;
+
+      const prodReal = decisoes.pacote ? PACOTES[decisoes.pacote].prod * simState.modProd : 0;
+      const sacasTotal = prodReal * area;
+      const custoPorSaca = sacasTotal > 0 ? custos.total / sacasTotal : 0;
+
+      return { ...custos, caixa, caixaPago, dividaAcumulada, prodReal, sacasTotal, custoPorSaca };
+    }
+
+    function calcularDRE(decisoes, simState) {
+      const pacote = PACOTES[decisoes.pacote];
+      const fin = FINANCIAMENTOS[decisoes.financiamento];
+      const seg = SEGUROS[decisoes.seguro];
+      const manejo = MANEJOS[decisoes.manejo];
+      const area = decisoes.area;
+
+      // Produtividade final
+      const prodPotencial = pacote.prod;
+      const prodReal = Math.max(15, prodPotencial * simState.modProd);
+      const sacasTotal = prodReal * area;
+
+      // Custos
+      const custoInsumos = pacote.custoHa * area;
+      const custoManejo = manejo.custoHa * area;
+      const custoSeguro = seg.custoPct * pacote.custoHa * area;
+      const custoExtra = simState.custoExtra * area;
+      const custoFinanceiro = fin.custoFin * (custoInsumos + custoManejo);
+
+      // Quebra de safra → seguro paga
+      const prodFrustrada = prodReal < prodPotencial * 0.70;
+      const indenizacao = prodFrustrada
+        ? seg.cobertura * (custoInsumos + custoManejo) * (1 - prodReal / prodPotencial)
+        : 0;
+
+      // Preço final
+      const basisFinal = INITIAL_MARKET.basisMT + simState.modBasis;
+      const futuroFinal = INITIAL_MARKET.futuroJulho * simState.modPreco;
+      const precoSpot = futuroFinal + basisFinal;
+
+      // Travamento antecipado: vendido ao preço inicial (futuro - basis original)
+      const sacasTravadas = sacasTotal * decisoes.travado;
+      const precoTravado = INITIAL_MARKET.futuroJulho + INITIAL_MARKET.basisMT;
+      const receitaTravada = sacasTravadas * precoTravado;
+
+      // Sacas livres: vendidas conforme estratégia
+      const sacasLivres = sacasTotal - sacasTravadas;
+      let precoMedioLivre;
+      if (decisoes.venda === 'colheita') {
+        precoMedioLivre = precoSpot;
+      } else if (decisoes.venda === 'armazenar') {
+        // 3 janelas: assume preço médio com modificadores diluídos + custo armazenagem
+        precoMedioLivre = precoSpot * 1.04 - 3.50; // R$3,50/sc armazenagem 4 meses
+      } else {
+        precoMedioLivre = precoSpot * 1.02 - 1.80;
+      }
+      const receitaLivre = sacasLivres * precoMedioLivre;
+
+      const receitaBruta = receitaTravada + receitaLivre + indenizacao;
+      const custoTotal = custoInsumos + custoManejo + custoSeguro + custoExtra + custoFinanceiro;
+      const lucro = receitaBruta - custoTotal;
+      const lucroHa = lucro / area;
+      const roe = lucro / decisoes.capital;
+
+      return {
+        prodPotencial, prodReal, sacasTotal,
+        sacasTravadas, sacasLivres, precoTravado, precoMedioLivre,
+        receitaTravada, receitaLivre, indenizacao, receitaBruta,
+        custoInsumos, custoManejo, custoSeguro, custoExtra, custoFinanceiro, custoTotal,
+        lucro, lucroHa, roe,
+        futuroFinal, precoSpot, basisFinal, prodFrustrada
+      };
+    }
+
+    // ============================================================
+    // UI HELPERS
+    // ============================================================
+
+    const fmtBRL = (n, dec = 0) => 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    const fmtPct = (n) => (n * 100).toFixed(1) + '%';
+    const fmtSacas = (n) => Math.round(n).toLocaleString('pt-BR') + ' sc';
+
+    const TIPO_COR = {
+      climatico: '#7FA3C4',
+      fito: '#C97B3F',
+      mercado: '#D4A574',
+      logistico: '#9B8DAF',
+      positivo: '#8FB36B'
+    };
+
+    // ============================================================
+    // INFOTIP — tooltips clicáveis pra explicar conceitos do agro
+    // ============================================================
+    function InfoTip({ title, children, size = 'sm' }) {
+      const [open, setOpen] = useState(false);
+      const iconSize = size === 'sm' ? 14 : 16;
+      return (
+        <>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+            className="inline-flex items-center justify-center text-[#7a7a68] hover:text-[#D4A574] transition-colors align-middle ml-1"
+            aria-label={`O que é ${title}?`}
+          >
+            <Info size={iconSize} strokeWidth={2} />
+          </button>
+          {open && (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+              {/* Fundo escuro opaco — bloqueia o que está atrás */}
+              <div
+                className="absolute inset-0 bg-black/90"
+                onClick={() => setOpen(false)}
+              />
+              {/* Modal CLARO: bg branco puro, texto preto */}
+              <div className="tooltip-content relative w-full sm:max-w-md max-h-[85vh] flex flex-col bg-white border border-black/30 rounded-t-2xl sm:rounded-2xl shadow-2xl">
+                {/* Header */}
+                <div className="flex justify-between items-start gap-3 px-5 pt-5 pb-3 flex-shrink-0 border-b border-black/15">
+                  <div className="font-display text-xl text-black leading-tight font-semibold" style={{ fontStyle: 'italic' }}>{title}</div>
+                  <button
+                    onClick={() => setOpen(false)}
+                    className="text-black flex-shrink-0 -mt-1 -mr-1 p-1.5 rounded hover:bg-black/10"
+                    aria-label="Fechar"
+                  >
+                    <X size={24} strokeWidth={2.5} />
+                  </button>
+                </div>
+                {/* Conteúdo rolável — texto preto sobre branco */}
+                <div className="text-black text-base leading-relaxed space-y-3 overflow-y-auto px-5 py-4 flex-1">
+                  {children}
+                </div>
+                {/* Botão grande de fechar no rodapé */}
+                <div className="px-4 py-3 border-t border-black/15 flex-shrink-0 bg-white">
+                  <button
+                    onClick={() => setOpen(false)}
+                    className="w-full bg-black hover:bg-[#2a2a23] active:bg-[#2a2a23] text-white font-medium py-3 rounded-lg text-base transition-colors"
+                  >
+                    Entendi, fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    }
+
+    // ============================================================
+    // COMPONENTES
+    // ============================================================
+
+    function FaseHeader({ fase, mes }) {
+      const fases = [
+        { id: 'setup',          label: 'Setup',         mes: 'Ago' },
+        { id: 'plantio',        label: 'Plantio',       mes: 'Set–Nov' },
+        { id: 'vegetativo',     label: 'Floração',      mes: 'Dez–Jan' },
+        { id: 'enchimento',     label: 'Enchimento',    mes: 'Jan–Fev' },
+        { id: 'colheita',       label: 'Colheita',      mes: 'Fev–Abr' },
+        { id: 'comercializacao',label: 'Comercial.',    mes: 'Fev–Jul' },
+        { id: 'dre',            label: 'Fechamento',    mes: '—' }
+      ];
+      const idx = fases.findIndex(f => f.id === fase);
+      return (
+        <div className="flex items-center gap-1 overflow-x-auto pb-2 -mx-1 px-1">
+          {fases.map((f, i) => (
+            <React.Fragment key={f.id}>
+              <div className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider ${
+                i === idx ? 'bg-[#D4A574] text-[#1a1a13]' :
+                i < idx ? 'bg-[#3a3a2e] text-[#8a8a78]' :
+                'text-[#5a5a4e]'
+              }`}>
+                {f.label}
+              </div>
+              {i < fases.length - 1 && <div className="text-[#3a3a2e] text-xs">·</div>}
+            </React.Fragment>
+          ))}
+        </div>
+      );
+    }
+
+    function StatBar({ decisoes, simState }) {
+      const c = calcularCustosAcumulados(decisoes, simState);
+      const prodEst = decisoes.pacote ? Math.round(c.prodReal) : null;
+      const custoSc = c.custoPorSaca > 0 ? c.custoPorSaca : null;
+      const finLabel = decisoes.financiamento ? FINANCIAMENTOS[decisoes.financiamento].label : '—';
+      const pacoteLabel = decisoes.pacote ? PACOTES[decisoes.pacote].label : null;
+
+      return (
+        <div className="grid grid-cols-3 gap-2 text-[11px]">
+          {/* Caixa */}
+          <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2">
+            <div className="text-[#7a7a68] uppercase tracking-wider text-[9px] mb-0.5 flex items-center">
+              Caixa
+              <InfoTip title="Saldo de caixa">
+                <p>Dinheiro vivo que você ainda tem disponível, depois dos custos já pagos.</p>
+                <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Capital inicial</span><span>{fmtBRL(decisoes.capital)}</span></div>
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">(−) Saídas do caixa</span><span className="text-[#C97B3F]">({fmtBRL(c.caixaPago)})</span></div>
+                  <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Caixa atual</span><span className="text-[#D4A574]">{fmtBRL(c.caixa)}</span></div>
+                </div>
+                {c.dividaAcumulada > 0 && (
+                  <p className="mt-3 text-xs">⚠ Você também tem <strong className="text-[#C97B3F]">{fmtBRL(c.dividaAcumulada)}</strong> de dívida ({finLabel}) a quitar com a venda da safra.</p>
+                )}
+                <p className="text-[#b5b1a0] text-xs mt-3">Insumos e manejo só saem do caixa se você escolheu "à vista". Pronamp e barter são dívida, não saída.</p>
+              </InfoTip>
+            </div>
+            <div className="font-mono text-[#E8E4D5]">{fmtBRL(c.caixa)}</div>
+          </div>
+
+          {/* Custo por saca */}
+          <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2">
+            <div className="text-[#7a7a68] uppercase tracking-wider text-[9px] mb-0.5 flex items-center">
+              Custo/sc
+              <InfoTip title="Custo unitário por saca">
+                <p>Quanto cada saca produzida vai te custar — somando tudo que você comprometeu e dividindo pelas sacas estimadas.</p>
+                {custoSc ? (
+                  <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                    <div className="flex justify-between"><span className="text-[#8a8a78]">Custo total comprometido</span><span>{fmtBRL(c.total)}</span></div>
+                    <div className="flex justify-between"><span className="text-[#8a8a78]">÷ Sacas estimadas</span><span>{fmtSacas(c.sacasTotal)}</span></div>
+                    <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Custo/sc</span><span className="text-[#D4A574]">{fmtBRL(c.custoPorSaca, 2)}</span></div>
+                  </div>
+                ) : (
+                  <p className="text-[#b5b1a0] text-xs">Disponível depois de escolher o pacote tecnológico.</p>
+                )}
+                <p className="text-[#b5b1a0] text-xs mt-3">Referência: spot MT hoje em R$ {INITIAL_MARKET.spotMT.toFixed(2)}/sc. Se seu custo/sc ultrapassar isso, vender no físico é prejuízo — só travar antecipado salva.</p>
+              </InfoTip>
+            </div>
+            <div className={`font-mono ${custoSc && custoSc > INITIAL_MARKET.spotMT ? 'text-[#C44536]' : 'text-[#D4A574]'}`}>
+              {custoSc ? fmtBRL(custoSc, 2) : '—'}
+            </div>
+          </div>
+
+          {/* Produtividade estimada */}
+          <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2">
+            <div className="text-[#7a7a68] uppercase tracking-wider text-[9px] mb-0.5 flex items-center">
+              Prod. est.
+              <InfoTip title="Produtividade estimada">
+                <p>Quantas sacas por hectare você espera colher, dado o pacote escolhido e os eventos que já ocorreram.</p>
+                {pacoteLabel ? (
+                  <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                    <div className="flex justify-between"><span className="text-[#8a8a78]">Potencial ({pacoteLabel})</span><span>{PACOTES[decisoes.pacote].prod} sc/ha</span></div>
+                    <div className="flex justify-between"><span className="text-[#8a8a78]">× Modificadores</span><span>{(simState.modProd * 100).toFixed(0)}%</span></div>
+                    <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Estimativa atual</span><span className="text-[#D4A574]">{prodEst} sc/ha</span></div>
+                  </div>
+                ) : (
+                  <p className="text-[#b5b1a0] text-xs">Disponível depois de escolher o pacote tecnológico.</p>
+                )}
+                <p className="text-[#b5b1a0] text-xs mt-3">A produtividade real só é conhecida na colheita. Eventos climáticos e pragas mudam essa estimativa ao longo da safra.</p>
+              </InfoTip>
+            </div>
+            <div className="font-mono text-[#D4A574]">{prodEst !== null ? prodEst + ' sc/ha' : '—'}</div>
+          </div>
+        </div>
+      );
+    }
+
+    function Card({ selected, onClick, children, accent = '#D4A574' }) {
+      return (
+        <button
+          onClick={onClick}
+          className={`w-full text-left p-4 rounded-lg border transition-all ${
+            selected
+              ? 'bg-[#1f2117] border-[#D4A574] shadow-[0_0_0_1px_#D4A574]'
+              : 'bg-[#15170e] border-[#2a2c1f] hover:border-[#4a4c3a]'
+          }`}
+          style={selected ? { borderColor: accent, boxShadow: `0 0 0 1px ${accent}` } : {}}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function EventoCard({ evento, decisoes }) {
+      const Icon = evento.icon;
+      const cor = TIPO_COR[evento.tipo] || '#D4A574';
+      const impactoStr = evento.impactoTexto ? evento.impactoTexto(decisoes) : null;
+      return (
+        <div className="bg-[#15170e] border-l-2 rounded p-3 mb-2" style={{ borderLeftColor: cor }}>
+          <div className="flex items-start gap-2">
+            <Icon size={16} style={{ color: cor }} className="mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[#E8E4D5] text-sm font-medium leading-tight flex items-start gap-1">
+                <span className="flex-1">{evento.titulo}</span>
+                {evento.explicacao && (
+                  <InfoTip title={evento.titulo}>
+                    <p className="text-[#c8c4b5]">{evento.desc}</p>
+                    <p>{evento.explicacao}</p>
+                    {impactoStr && (
+                      <div className="bg-[#0f110a] rounded p-2 mt-3">
+                        <div className="text-[9px] uppercase tracking-wider text-[#7a7a68] mb-1">Impacto no seu negócio</div>
+                        <div className="font-mono text-xs" style={{ color: cor }}>{impactoStr}</div>
+                      </div>
+                    )}
+                  </InfoTip>
+                )}
+              </div>
+              <div className="text-[#8a8a78] text-xs mt-1 leading-snug">{evento.desc}</div>
+              {impactoStr && (
+                <div className="mt-2 font-mono text-[10px] flex items-center gap-1.5">
+                  <span className="text-[#5a5a4e]">▸</span>
+                  <span style={{ color: cor }}>{impactoStr}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function MercadoSnap() {
+      return (
+        <div className="bg-[#0f110a] border border-[#2a2c1f] rounded p-3 text-[11px] font-mono">
+          <div className="text-[#7a7a68] uppercase tracking-widest text-[9px] mb-2 flex items-center gap-2">
+            <Calendar size={10} /> Mercado · ago/2025
+            <InfoTip title="O que é esse painel?">
+              <p>É a fotografia real do mercado no dia em que você começa a safra. Esses seis indicadores definem todo o resto: quanto você vai gastar, quanto vai receber e qual o risco do ano.</p>
+              <p>No simulador, esses valores são o ponto de partida. Daí pra frente, os eventos aleatórios mexem neles ao longo dos 11 meses da safra.</p>
+            </InfoTip>
+          </div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+            <div className="flex justify-between items-center">
+              <span className="text-[#8a8a78] flex items-center">SFI jul/26
+                <InfoTip title="SFI jul/26 — Futuro da soja na B3">
+                  <p><strong className="text-[#D4A574]">O que é</strong>: contrato futuro de soja da B3 (bolsa brasileira). "SFI" é o código do contrato (Soja FOB Itacoatiara). "jul/26" é o vencimento — julho de 2026, quando o contrato liquida.</p>
+                  <p><strong className="text-[#D4A574]">Por que importa</strong>: é o preço de referência para travamentos antecipados no Brasil. Quando você fixa preço antes da colheita, geralmente é via esse contrato (ou contrato a termo derivado dele).</p>
+                  <p><strong className="text-[#D4A574]">O número</strong>: R$ 134,50 por saca de 60kg. Mas atenção — em Sorriso/MT a saca vale menos, por causa do <em>basis</em>.</p>
+                </InfoTip>
+              </span>
+              <span className="text-[#E8E4D5]">{INITIAL_MARKET.futuroJulho.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[#8a8a78] flex items-center">Spot MT
+                <InfoTip title="Spot MT — preço físico em Mato Grosso">
+                  <p><strong className="text-[#D4A574]">O que é</strong>: "spot" significa à vista, agora, na entrega imediata. É o preço real da saca no balcão da fazenda ou armazém em Sorriso/MT.</p>
+                  <p><strong className="text-[#D4A574]">Por que importa</strong>: é o preço que você efetivamente embolsa se vende a soja hoje, sem hedge nem trava. Quando o jogador escolhe "vender na colheita", é por esse preço.</p>
+                  <p><strong className="text-[#D4A574]">Como é formado</strong>: Spot = Futuro + Basis. Aqui: 134,50 + (−16,50) = 118,00.</p>
+                </InfoTip>
+              </span>
+              <span className="text-[#E8E4D5]">{INITIAL_MARKET.spotMT.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[#8a8a78] flex items-center">PTAX
+                <InfoTip title="PTAX — taxa de câmbio oficial">
+                  <p><strong className="text-[#D4A574]">O que é</strong>: taxa de câmbio (USD/BRL) calculada pelo Banco Central como média ponderada das negociações de dólar do dia. É a referência oficial do mercado.</p>
+                  <p><strong className="text-[#D4A574]">Por que importa muito pro produtor</strong>: a soja é uma commodity dolarizada. O preço lá fora (Chicago) é em dólar. Quando o dólar sobe, a soja em reais sobe junto, mesmo sem mudar a cotação internacional.</p>
+                  <p><strong className="text-[#D4A574]">Impacto prático</strong>: se o PTAX vai de 5,38 pra 5,80, sua saca pode subir R$ 5–8 só por isso. Se cai pra 5,00, sua receita encolhe.</p>
+                </InfoTip>
+              </span>
+              <span className="text-[#E8E4D5]">{INITIAL_MARKET.ptax.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[#8a8a78] flex items-center">Selic
+                <InfoTip title="Selic — taxa básica de juros">
+                  <p><strong className="text-[#D4A574]">O que é</strong>: taxa básica de juros do Brasil, definida pelo Copom (comitê do Banco Central) a cada 45 dias.</p>
+                  <p><strong className="text-[#D4A574]">Por que importa</strong>: é a base do custo de crédito. Linhas de financiamento agrícola (Pronamp, custeio) são precificadas a partir dela. Selic alta = financiar a safra fica mais caro.</p>
+                  <p><strong className="text-[#D4A574]">Impacto prático</strong>: a 11,25% a.a., um Pronamp de R$ 5 mi custa ~R$ 425 mil em juros até a colheita. Se Selic sobe pra 13%, esse custo vai pra ~R$ 540 mil.</p>
+                </InfoTip>
+              </span>
+              <span className="text-[#E8E4D5]">{INITIAL_MARKET.selic.toFixed(2)}%</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[#8a8a78] flex items-center">Basis
+                <InfoTip title="Basis — diferencial regional">
+                  <p><strong className="text-[#D4A574]">O que é</strong>: a diferença entre o futuro B3 (referência Paranaguá/Santos) e o preço físico na sua região.</p>
+                  <p><strong className="text-[#D4A574]">Por que é negativo no MT</strong>: a soja produzida em Sorriso precisa percorrer 2.000+ km até o porto. Quem compra desconta o custo de frete + armazenagem + tempo. Por isso o basis fica negativo.</p>
+                  <p><strong className="text-[#D4A574]">O que faz mexer</strong>: pico de safra (silo cheio, basis piora), frete (caminhão escasso, basis piora), demanda exportação (China comprando, basis melhora).</p>
+                  <p><strong className="text-[#D4A574]">O número</strong>: −R$ 16,50/saca = a soja em Sorriso vale R$ 16,50 a menos que a referência B3.</p>
+                </InfoTip>
+              </span>
+              <span className="text-[#E8E4D5]">{INITIAL_MARKET.basisMT.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[#8a8a78] flex items-center">CBOT
+                <InfoTip title="CBOT — Chicago, a referência mundial">
+                  <p><strong className="text-[#D4A574]">O que é</strong>: Chicago Board of Trade — a bolsa de commodities de Chicago. É a principal referência mundial de preço da soja, milho, trigo. Todo mundo no mercado global olha pra ela.</p>
+                  <p><strong className="text-[#D4A574]">Por que importa pro Brasil</strong>: quando o CBOT sobe, a soja brasileira segue (com defasagem de horas e ajustes de prêmio). É o "mercado lá fora" puxando o preço aqui.</p>
+                  <p><strong className="text-[#D4A574]">Unidade diferente</strong>: lá é em USD por <em>bushel</em> (≈27,2 kg), aqui é R$ por saca (60 kg). Conversão aproximada: CBOT × 60 ÷ 27,2 × PTAX = preço de paridade da saca.</p>
+                  <p><strong className="text-[#D4A574]">Conta aqui</strong>: 10,65 × 60 ÷ 27,2 × 5,38 = ~R$ 126,30/saca de paridade (sem prêmio nem basis).</p>
+                </InfoTip>
+              </span>
+              <span className="text-[#E8E4D5]">{INITIAL_MARKET.cbot.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // APP PRINCIPAL
+    // ============================================================
+
+    function AgroGP() {
+      const [fase, setFase] = useState('intro');
+      const [decisoes, setDecisoes] = useState({
+        area: 1000,
+        capital: 6500000,
+        pacote: null,
+        financiamento: null,
+        seguro: null,
+        travado: null,
+        plantio: null,
+        manejo: null,
+        venda: null
+      });
+      const [simState, setSimState] = useState({
+        modProd: 1.0,
+        modPreco: 1.0,
+        modBasis: 0,
+        custoExtra: 0
+      });
+      const [eventLog, setEventLog] = useState([]);
+      const [faseEventos, setFaseEventos] = useState([]);
+
+      const dre = useMemo(() => {
+        if (fase !== 'dre') return null;
+        return calcularDRE(decisoes, simState);
+      }, [fase, decisoes, simState]);
+
+      function avancarFase(proxima) {
+        // Se for tela de eventos, rola eventos da fase base
+        if (proxima.endsWith('-eventos')) {
+          const faseBase = proxima.replace('-eventos', '');
+          const novos = rolarEventosDaFase(faseBase, decisoes);
+          const novoState = { ...simState };
+          novos.forEach(e => e.aplicar(novoState, decisoes));
+          setSimState(novoState);
+          setFaseEventos(novos);
+          setEventLog(prev => [...prev, ...novos.map(e => ({ ...e, fase: faseBase }))]);
+        } else {
+          setFaseEventos([]);
+        }
+        setFase(proxima);
+      }
+
+      function resetar() {
+        setFase('intro');
+        setDecisoes({ area: 1000, capital: 6500000, pacote: null, financiamento: null, seguro: null, travado: null, plantio: null, manejo: null, venda: null });
+        setSimState({ modProd: 1.0, modPreco: 1.0, modBasis: 0, custoExtra: 0 });
+        setEventLog([]);
+        setFaseEventos([]);
+      }
+
+      return (
+        <div className="min-h-screen bg-[#0a0c07] text-[#E8E4D5]" style={{ fontFamily: "'Geist', 'Inter', system-ui, sans-serif" }}>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&family=Geist:wght@400;500;600&display=swap');
+            .font-display { font-family: 'Fraunces', serif; font-feature-settings: 'ss01'; }
+            .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+            /* === TOOLTIP: tudo preto sobre branco, força sobre qualquer cor inline === */
+            .tooltip-content,
+            .tooltip-content p,
+            .tooltip-content span,
+            .tooltip-content div,
+            .tooltip-content em { color: #000 !important; }
+            .tooltip-content strong { color: #6b4d1f !important; font-weight: 700 !important; }
+            .tooltip-content em { font-style: italic; color: #3a3a2e !important; }
+            /* Caixas de cálculo internas: fundo cinza claro com borda */
+            .tooltip-content [class*="bg-[#0f110a]"],
+            .tooltip-content [class*="bg-[#15170e]"],
+            .tooltip-content [class*="bg-[#1a1c12]"] {
+              background-color: #f0ede2 !important;
+              border: 1px solid #c8c4b5 !important;
+            }
+            .tooltip-content [class*="border-[#2a2c1f]"] { border-color: #c8c4b5 !important; }
+            /* Indicadores de status mantém cor mas escurece pra ler em fundo branco */
+            .tooltip-content [class*="text-[#8FB36B]"] { color: #2F5A1E !important; }
+            .tooltip-content [class*="text-[#C97B3F]"] { color: #8B3A0F !important; }
+            .tooltip-content [class*="text-[#C44536]"] { color: #8B1F1F !important; }
+          `}</style>
+
+          <div className="max-w-2xl mx-auto px-4 py-6">
+            {/* Header */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-1">
+                <h1 className="font-display text-2xl text-[#D4A574]" style={{ fontStyle: 'italic' }}>Agro GP</h1>
+                {fase !== 'intro' && (
+                  <button onClick={resetar} className="text-[#7a7a68] hover:text-[#E8E4D5] text-xs flex items-center gap-1">
+                    <RotateCcw size={12} /> reiniciar
+                  </button>
+                )}
+              </div>
+              <div className="text-[#7a7a68] text-xs uppercase tracking-widest">Soja · Mato Grosso · Safra 2025/26</div>
+            </div>
+
+            {/* ====================== INTRO ====================== */}
+            {fase === 'intro' && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-[#1a1c12] to-[#15170e] border border-[#2a2c1f] rounded-lg p-5">
+                  <Sprout className="text-[#D4A574] mb-3" size={28} />
+                  <h2 className="font-display text-xl mb-3 leading-tight">Você é o produtor.</h2>
+                  <p className="text-[#c8c4b5] text-sm leading-relaxed mb-3">
+                    Mil hectares em Sorriso, MT. R$ 6,5 milhões de capital de giro. Uma safra inteira pela frente — do plantio à venda do físico.
+                  </p>
+                  <p className="text-[#c8c4b5] text-sm leading-relaxed">
+                    Sete decisões. Eventos que você não controla. No fim, um DRE que diz se você acertou.
+                  </p>
+                  <div className="mt-4 pt-4 border-t border-[#2a2c1f]/60 flex items-start gap-2">
+                    <Info size={14} className="text-[#D4A574] mt-0.5 flex-shrink-0" />
+                    <p className="text-[#8a8a78] text-xs leading-snug">
+                      Iniciante no agro? Procure o ícone <Info size={11} className="inline text-[#D4A574]" /> ao lado dos títulos pra entender cada conceito.
+                    </p>
+                  </div>
+                </div>
+                <MercadoSnap />
+                <button
+                  onClick={() => setFase('setup-pacote')}
+                  className="w-full bg-[#D4A574] hover:bg-[#E8B547] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                >
+                  começar a safra <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== SETUP — PACOTE TECNOLÓGICO ====================== */}
+            {fase === 'setup-pacote' && (
+              <div className="space-y-4">
+                <FaseHeader fase="setup" />
+                <StatBar decisoes={decisoes} simState={simState} />
+                <div className="mt-4">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 1 de 7</div>
+                  <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
+                    Pacote tecnológico
+                    <InfoTip title="Pacote tecnológico">
+                      <p>O conjunto de insumos e tecnologia que você usa por hectare: semente, adubo, defensivo, tratamento.</p>
+                      <p><strong className="text-[#D4A574]">Básico</strong>: genética antiga, adubação mínima. Custa pouco mas produz menos.</p>
+                      <p><strong className="text-[#D4A574]">Médio</strong>: variedade RR (resistente a glifosato), adubação calibrada por análise de solo, fungicida preventivo.</p>
+                      <p><strong className="text-[#D4A574]">Premium</strong>: Intacta RR2 PRO (resistente a lagartas), tratamento industrial de semente, programa fitossanitário completo.</p>
+                      <p className="text-[#b5b1a0] text-xs mt-3">A diferença entre 52 e 72 sc/ha é gigante — mas só se o clima ajudar. Em ano de seca, o premium produz pouco também e você só gastou mais.</p>
+                    </InfoTip>
+                  </h2>
+                  <p className="text-[#8a8a78] text-sm leading-snug">Mais tecnologia = maior potencial e maior custo. A diferença entre 52 e 72 sc/ha é gigante no fim do ano — mas só se o clima ajudar.</p>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(PACOTES).map(([k, p]) => (
+                    <Card key={k} selected={decisoes.pacote === k} onClick={() => setDecisoes(d => ({ ...d, pacote: k }))}>
+                      <div className="flex justify-between items-baseline mb-1">
+                        <div className="font-medium text-[#E8E4D5]">{p.label}</div>
+                        <div className="font-mono text-xs text-[#D4A574]">{p.prod} sc/ha · {fmtBRL(p.custoHa)}/ha</div>
+                      </div>
+                      <div className="text-xs text-[#8a8a78] leading-snug">{p.desc}</div>
+                    </Card>
+                  ))}
+                </div>
+                <button
+                  disabled={!decisoes.pacote}
+                  onClick={() => setFase('setup-fin')}
+                  className="w-full bg-[#D4A574] disabled:bg-[#2a2c1f] disabled:text-[#5a5a4e] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2"
+                >
+                  próximo <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== SETUP — FINANCIAMENTO ====================== */}
+            {fase === 'setup-fin' && (
+              <div className="space-y-4">
+                <FaseHeader fase="setup" />
+                <StatBar decisoes={decisoes} simState={simState} />
+                <div className="mt-4">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 2 de 7</div>
+                  <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
+                    Financiamento dos insumos
+                    <InfoTip title="Como financiar a safra">
+                      <p>Comprar insumo custa caro. Quase nenhum produtor paga 100% à vista. As três rotas:</p>
+                      <p><strong className="text-[#D4A574]">À vista</strong>: você usa o caixa próprio. Não paga juros, mas fica sem reserva pra emergência.</p>
+                      <p><strong className="text-[#D4A574]">Pronamp</strong>: linha de crédito rural subsidiada do governo, voltada ao médio produtor. Juros entre 7% e 9% a.a. Paga depois da colheita.</p>
+                      <p><strong className="text-[#D4A574]">Barter</strong>: você "troca" sacas de soja por insumo. A revenda fixa hoje quantas sacas você vai entregar na safra. Embute custo financeiro de ~11% e te trava em um preço.</p>
+                    </InfoTip>
+                  </h2>
+                  <p className="text-[#8a8a78] text-sm leading-snug">Custo total estimado: <span className="text-[#D4A574] font-mono">{fmtBRL(PACOTES[decisoes.pacote].custoHa * decisoes.area)}</span>. Como vai pagar?</p>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(FINANCIAMENTOS).map(([k, f]) => (
+                    <Card key={k} selected={decisoes.financiamento === k} onClick={() => setDecisoes(d => ({ ...d, financiamento: k }))}>
+                      <div className="flex justify-between items-baseline mb-1">
+                        <div className="font-medium text-[#E8E4D5]">{f.label}</div>
+                        <div className="font-mono text-xs text-[#D4A574]">{fmtPct(f.custoFin)} custo fin.</div>
+                      </div>
+                      <div className="text-xs text-[#8a8a78] leading-snug">{f.desc}</div>
+                    </Card>
+                  ))}
+                </div>
+                <button disabled={!decisoes.financiamento} onClick={() => setFase('setup-seg')} className="w-full bg-[#D4A574] disabled:bg-[#2a2c1f] disabled:text-[#5a5a4e] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2">
+                  próximo <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== SETUP — SEGURO ====================== */}
+            {fase === 'setup-seg' && (
+              <div className="space-y-4">
+                <FaseHeader fase="setup" />
+                <StatBar decisoes={decisoes} simState={simState} />
+                <div className="mt-4">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 3 de 7</div>
+                  <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
+                    Seguro agrícola
+                    <InfoTip title="Seguro agrícola">
+                      <p>Funciona como qualquer seguro: você paga um prêmio agora pra ter cobertura se a safra quebrar. No simulador, o seguro só ativa se a produtividade real cair abaixo de 70% do potencial do pacote.</p>
+                      <p><strong className="text-[#D4A574]">PROAGRO</strong>: programa público vinculado ao crédito rural. Mais barato, cobertura menor (~65% do custo).</p>
+                      <p><strong className="text-[#D4A574]">Privado top</strong>: seguradoras como Allianz, Mapfre, Swiss Re. Mais caro, cobre até ~85% do custo.</p>
+                      <p className="text-[#b5b1a0] text-xs mt-3">A grande sacada: o seguro não muda o resultado em ano normal. Ele só importa quando dá ruim. É o "airbag" da safra.</p>
+                    </InfoTip>
+                  </h2>
+                  <p className="text-[#8a8a78] text-sm leading-snug">Não muda o resultado normal. Salva a sua pele quando o ano é ruim.</p>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(SEGUROS).map(([k, s]) => (
+                    <Card key={k} selected={decisoes.seguro === k} onClick={() => setDecisoes(d => ({ ...d, seguro: k }))}>
+                      <div className="flex justify-between items-baseline mb-1">
+                        <div className="font-medium text-[#E8E4D5]">{s.label}</div>
+                        <div className="font-mono text-xs text-[#D4A574]">prêmio {fmtPct(s.custoPct)} · cob. {fmtPct(s.cobertura)}</div>
+                      </div>
+                      <div className="text-xs text-[#8a8a78] leading-snug">{s.desc}</div>
+                    </Card>
+                  ))}
+                </div>
+                <button disabled={!decisoes.seguro} onClick={() => setFase('setup-trava')} className="w-full bg-[#D4A574] disabled:bg-[#2a2c1f] disabled:text-[#5a5a4e] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2">
+                  próximo <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== SETUP — TRAVAMENTO ====================== */}
+            {fase === 'setup-trava' && (
+              <div className="space-y-4">
+                <FaseHeader fase="setup" />
+                <StatBar decisoes={decisoes} simState={simState} />
+                <div className="mt-4">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 4 de 7</div>
+                  <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
+                    Travamento antecipado
+                    <InfoTip title="Travar preço antes da colheita">
+                      <p>Você está em agosto. Ainda nem plantou. Mas pode "vender" sua soja hoje, no papel, pelo preço atual do mercado — prometendo entregar uma quantidade fixa quando colher.</p>
+                      <p>É feito com <strong className="text-[#D4A574]">contratos a termo</strong> (com a trading) ou <strong className="text-[#D4A574]">futuros da B3</strong> (no mercado financeiro). No simulador, fixa a {fmtBRL(INITIAL_MARKET.futuroJulho + INITIAL_MARKET.basisMT, 2)}/sc.</p>
+                      <p><strong className="text-[#D4A574]">Vantagem</strong>: você garante margem. Se a soja despencar, você está protegido.</p>
+                      <p><strong className="text-[#D4A574]">Desvantagem</strong>: se a soja subir, você perdeu o ganho. Está vendido a R$118 mesmo se o mercado for pra R$140.</p>
+                      <p className="text-[#b5b1a0] text-xs mt-3">Travar muito = postura conservadora. Travar pouco = aposta no mercado. A maioria dos produtores trava entre 30% e 50% antes do plantio.</p>
+                    </InfoTip>
+                  </h2>
+                  <p className="text-[#8a8a78] text-sm leading-snug">Fixar preço hoje em <span className="font-mono text-[#D4A574]">{fmtBRL(INITIAL_MARKET.futuroJulho + INITIAL_MARKET.basisMT, 2)}/sc</span>. Garante margem mas trava upside. Você ainda não plantou.</p>
+                </div>
+                <div className="space-y-2">
+                  {[0, 0.3, 0.5, 0.7].map(pct => (
+                    <Card key={pct} selected={decisoes.travado === pct} onClick={() => setDecisoes(d => ({ ...d, travado: pct }))}>
+                      <div className="flex justify-between items-baseline">
+                        <div className="font-medium text-[#E8E4D5]">{pct === 0 ? 'Não travar nada' : `Travar ${(pct*100).toFixed(0)}% da safra estimada`}</div>
+                        <div className="font-mono text-xs text-[#D4A574]">
+                          {pct === 0 ? 'risco max' : pct < 0.5 ? 'mod. conserv.' : 'alta proteção'}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+                <button disabled={decisoes.travado === null} onClick={() => setFase('setup-plantio')} className="w-full bg-[#D4A574] disabled:bg-[#2a2c1f] disabled:text-[#5a5a4e] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2">
+                  próximo <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== PLANTIO — JANELA ====================== */}
+            {fase === 'setup-plantio' && (
+              <div className="space-y-4">
+                <FaseHeader fase="plantio" />
+                <StatBar decisoes={decisoes} simState={simState} />
+                <div className="mt-4">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 5 de 7</div>
+                  <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
+                    Janela de plantio
+                    <InfoTip title="Janela de plantio">
+                      <p>O calendário no MT é apertado: a soja precisa ser plantada entre setembro e novembro pra colher entre janeiro e março, abrindo espaço pra outra cultura depois (milho safrinha, algodão).</p>
+                      <p><strong className="text-[#D4A574]">Plantar cedo</strong>: libera o milho safrinha em janeiro, ideal. Mas a floração da soja cai em dezembro, mês de risco de <em>veranico</em> (período seco curto que mata produtividade).</p>
+                      <p><strong className="text-[#D4A574]">Plantar tarde</strong>: floração em fevereiro, com chuva mais garantida. Mas o milho fica fora da janela — perde a segunda safra.</p>
+                      <p><strong className="text-[#D4A574]">Veranico</strong>: pausa de 10–20 dias sem chuva no meio da estação chuvosa. Se cai na floração da soja, abortou vagem = perdeu safra.</p>
+                    </InfoTip>
+                  </h2>
+                  <p className="text-[#8a8a78] text-sm leading-snug">Cedo abre milho safrinha mas pega veranico. Tarde reduz risco mas comprime tudo.</p>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(JANELAS).map(([k, j]) => (
+                    <Card key={k} selected={decisoes.plantio === k} onClick={() => setDecisoes(d => ({ ...d, plantio: k }))}>
+                      <div className="flex justify-between items-baseline mb-1">
+                        <div className="font-medium text-[#E8E4D5]">{j.label}</div>
+                        <div className="font-mono text-xs text-[#D4A574]">
+                          veranico {fmtPct(j.riscoVeranico)}
+                        </div>
+                      </div>
+                      <div className="text-xs text-[#8a8a78] leading-snug">
+                        Mod. produtividade {(j.modProd * 100).toFixed(0)}% · {j.abreSafrinha ? 'libera safrinha' : 'sem safrinha'}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+                <button
+                  disabled={!decisoes.plantio}
+                  onClick={() => avancarFase('plantio-eventos')}
+                  className="w-full bg-[#D4A574] disabled:bg-[#2a2c1f] disabled:text-[#5a5a4e] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2"
+                >
+                  plantar <Sprout size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== EVENTOS DAS FASES (unificado) ====================== */}
+            {['plantio-eventos', 'vegetativo-eventos', 'enchimento-eventos', 'colheita-eventos', 'comercializacao-eventos'].includes(fase) && (
+              <FaseEventosScreen
+                fase={fase}
+                decisoes={decisoes}
+                simState={simState}
+                eventos={faseEventos}
+                onContinuar={() => {
+                  const mapa = {
+                    'plantio-eventos': 'setup-manejo',
+                    'vegetativo-eventos': 'enchimento-eventos',
+                    'enchimento-eventos': 'colheita-eventos',
+                    'colheita-eventos': 'setup-venda',
+                    'comercializacao-eventos': 'dre'
+                  };
+                  avancarFase(mapa[fase]);
+                }}
+                labelBotao={fase === 'comercializacao-eventos' ? 'ver resultado final' : 'continuar'}
+              />
+            )}
+
+            {/* ====================== MANEJO FITO ====================== */}
+            {fase === 'setup-manejo' && (
+              <div className="space-y-4">
+                <FaseHeader fase="vegetativo" />
+                <StatBar decisoes={decisoes} simState={simState} />
+                <div className="mt-2">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 6 de 7</div>
+                  <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
+                    Manejo fitossanitário
+                    <InfoTip title="Manejo fitossanitário">
+                      <p>"Fito" = sanidade da planta. Soja sofre ataque de fungos (ferrugem), lagartas (Helicoverpa) e percevejos. Cada um pode tirar 5–25% da safra se não for controlado.</p>
+                      <p><strong className="text-[#D4A574]">Ferrugem asiática</strong>: fungo que ataca a folha, reduz fotossíntese. Maior pesadelo da soja brasileira.</p>
+                      <p><strong className="text-[#D4A574]">Reativo</strong>: você só aplica defensivo quando vê o problema. Mais barato, mas geralmente é tarde demais.</p>
+                      <p><strong className="text-[#D4A574]">Preventivo</strong>: calendário fixo de aplicações antes do problema aparecer.</p>
+                      <p><strong className="text-[#D4A574]">Premium</strong>: monitoramento de campo + fungicidas premium + tecnologia de aplicação. Caro, mas perda de safra é quase zero.</p>
+                    </InfoTip>
+                  </h2>
+                  <p className="text-[#8a8a78] text-sm leading-snug">Ferrugem, lagarta e percevejo estão chegando. Quanto você investe em proteção?</p>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(MANEJOS).map(([k, m]) => (
+                    <Card key={k} selected={decisoes.manejo === k} onClick={() => setDecisoes(d => ({ ...d, manejo: k }))}>
+                      <div className="flex justify-between items-baseline mb-1">
+                        <div className="font-medium text-[#E8E4D5]">{m.label}</div>
+                        <div className="font-mono text-xs text-[#D4A574]">+{fmtBRL(m.custoHa)}/ha · efic. {fmtPct(m.eficacia)}</div>
+                      </div>
+                      <div className="text-xs text-[#8a8a78] leading-snug">{m.desc}</div>
+                    </Card>
+                  ))}
+                </div>
+                <button
+                  disabled={!decisoes.manejo}
+                  onClick={() => avancarFase('vegetativo-eventos')}
+                  className="w-full bg-[#D4A574] disabled:bg-[#2a2c1f] disabled:text-[#5a5a4e] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2"
+                >
+                  avançar para floração <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== ESTRATÉGIA DE VENDA ====================== */}
+            {fase === 'setup-venda' && (
+              <div className="space-y-4">
+                <FaseHeader fase="comercializacao" />
+                <StatBar decisoes={decisoes} simState={simState} />
+                <div className="mt-2">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 7 de 7</div>
+                  <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
+                    Estratégia de venda do físico
+                    <InfoTip title="Quando vender a soja colhida">
+                      <p>A soja colhida fica no caminhão (ou no silo). Você precisa decidir QUANDO transformar isso em dinheiro.</p>
+                      <p><strong className="text-[#D4A574]">Vender na colheita</strong>: rápido, sem risco, mas pega o pior preço do ano (todo mundo está vendendo ao mesmo tempo, mercado deprimido).</p>
+                      <p><strong className="text-[#D4A574]">Armazenar e esperar</strong>: leva 4–6 meses até a entressafra (jun–ago), quando o estoque escasseia e o preço sobe. Custa armazenagem (~R$3,50/sc).</p>
+                      <p><strong className="text-[#D4A574]">3 janelas</strong>: meio termo. Vende parcelado entre março e julho, diluindo o risco de pegar o pior momento.</p>
+                      <p className="text-[#b5b1a0] text-xs mt-3">O ganho de "carregar" estoque é chamado de <em>prêmio de carregamento</em> — o mercado paga mais quem segura a soja na entressafra.</p>
+                    </InfoTip>
+                  </h2>
+                  <p className="text-[#8a8a78] text-sm leading-snug">
+                    Colheita feita. {Math.round(PACOTES[decisoes.pacote].prod * simState.modProd)} sc/ha estimadas no caminhão. Como vai escoar?
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Card selected={decisoes.venda === 'colheita'} onClick={() => setDecisoes(d => ({ ...d, venda: 'colheita' }))}>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <div className="font-medium text-[#E8E4D5]">Vender tudo na colheita</div>
+                      <div className="font-mono text-xs text-[#D4A574]">preço spot atual</div>
+                    </div>
+                    <div className="text-xs text-[#8a8a78] leading-snug">Sem custo de armazenagem, sem risco de preço. Mas pega o pior preço do ano.</div>
+                  </Card>
+                  <Card selected={decisoes.venda === 'janelas'} onClick={() => setDecisoes(d => ({ ...d, venda: 'janelas' }))}>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <div className="font-medium text-[#E8E4D5]">Vender em 3 janelas (mar/mai/jul)</div>
+                      <div className="font-mono text-xs text-[#D4A574]">+2% / −R$ 1,80 arm.</div>
+                    </div>
+                    <div className="text-xs text-[#8a8a78] leading-snug">Diversifica timing. Caixa entra escalonado. Risco moderado.</div>
+                  </Card>
+                  <Card selected={decisoes.venda === 'armazenar'} onClick={() => setDecisoes(d => ({ ...d, venda: 'armazenar' }))}>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <div className="font-medium text-[#E8E4D5]">Armazenar e vender só na entressafra</div>
+                      <div className="font-mono text-xs text-[#D4A574]">+4% / −R$ 3,50 arm.</div>
+                    </div>
+                    <div className="text-xs text-[#8a8a78] leading-snug">Aposta no carrego. Custo de armazenagem alto. Pode ser muito bom ou muito ruim.</div>
+                  </Card>
+                </div>
+                <button
+                  disabled={!decisoes.venda}
+                  onClick={() => avancarFase('comercializacao-eventos')}
+                  className="w-full bg-[#D4A574] disabled:bg-[#2a2c1f] disabled:text-[#5a5a4e] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2"
+                >
+                  comercializar <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== DRE FINAL ====================== */}
+            {fase === 'dre' && dre && <DREScreen dre={dre} decisoes={decisoes} eventLog={eventLog} onReset={resetar} />}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // TELA DE EVENTOS DE FASE
+    // ============================================================
+    function FaseEventosScreen({ fase, decisoes, simState, eventos, onContinuar, labelBotao }) {
+      const titulos = {
+        'plantio-eventos': { titulo: 'Plantio em andamento', mes: 'Set–Nov', fase: 'plantio' },
+        'vegetativo-eventos': { titulo: 'Vegetativo / Floração', mes: 'Dez–Jan', fase: 'vegetativo' },
+        'enchimento-eventos': { titulo: 'Enchimento de grão', mes: 'Jan–Fev', fase: 'enchimento' },
+        'colheita-eventos': { titulo: 'Colheita', mes: 'Fev–Abr', fase: 'colheita' },
+        'comercializacao-eventos': { titulo: 'Comercialização', mes: 'Fev–Jul', fase: 'comercializacao' }
+      };
+      const meta = titulos[fase];
+      return (
+        <div className="space-y-4">
+          <FaseHeader fase={meta.fase} />
+          <StatBar decisoes={decisoes} simState={simState} />
+          <div className="mt-2">
+            <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">{meta.mes}</div>
+            <h2 className="font-display text-xl text-[#E8E4D5]">{meta.titulo}</h2>
+          </div>
+
+          {eventos.length === 0 && (
+            <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-4 text-center">
+              <CheckCircle2 className="text-[#8FB36B] mx-auto mb-2" size={20} />
+              <div className="text-[#c8c4b5] text-sm">Sem ocorrências relevantes nesta fase.</div>
+            </div>
+          )}
+
+          {eventos.length > 0 && (
+            <div>
+              <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-2">Ocorrências</div>
+              {eventos.map(e => <EventoCard key={e.id} evento={e} decisoes={decisoes} />)}
+            </div>
+          )}
+
+          <button onClick={onContinuar} className="w-full bg-[#D4A574] hover:bg-[#E8B547] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+            {labelBotao || 'continuar'} <ArrowRight size={16} />
+          </button>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // TELA DE DRE FINAL
+    // ============================================================
+    function DREScreen({ dre, decisoes, eventLog, onReset }) {
+      const positivo = dre.lucro > 0;
+
+      return (
+        <div className="space-y-5">
+          <FaseHeader fase="dre" />
+
+          <div className={`rounded-lg p-5 border ${positivo ? 'bg-gradient-to-br from-[#1f2517] to-[#15170e] border-[#8FB36B]/40' : 'bg-gradient-to-br from-[#25171a] to-[#15170e] border-[#C44536]/40'}`}>
+            <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Resultado da safra 25/26</div>
+            <div className="flex items-baseline justify-between mb-3">
+              <div className={`font-display text-3xl ${positivo ? 'text-[#8FB36B]' : 'text-[#C44536]'}`} style={{ fontStyle: 'italic' }}>
+                {fmtBRL(dre.lucro)}
+              </div>
+              <div className={`text-xs font-mono ${positivo ? 'text-[#8FB36B]' : 'text-[#C44536]'} flex items-center`}>
+                ROE {fmtPct(dre.roe)}
+                <InfoTip title="ROE — Retorno sobre o capital">
+                  <p>Quanto sua safra rendeu em cima do capital que você investiu nela. É a "rentabilidade" do esforço da safra inteira.</p>
+                  <p>ROE = Lucro ÷ Capital investido.</p>
+                  <p>No simulador, o capital é o caixa que você usou de capital de giro ({fmtBRL(decisoes.capital)}). Se o lucro foi {fmtBRL(dre.lucro)}, o ROE é {fmtPct(dre.roe)}.</p>
+                  <p className="text-[#b5b1a0] text-xs mt-3">Pra comparar: CDI numa safra (~10–11% a.a.) é o piso. Um ROE de 25%+ é uma safra muito boa. ROE negativo = você perdeu dinheiro.</p>
+                </InfoTip>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+              <div className="bg-[#0f110a]/60 rounded p-2">
+                <div className="text-[#7a7a68] text-[9px] uppercase tracking-wider">Lucro/ha</div>
+                <div className="text-[#E8E4D5] text-sm">{fmtBRL(dre.lucroHa)}</div>
+              </div>
+              <div className="bg-[#0f110a]/60 rounded p-2">
+                <div className="text-[#7a7a68] text-[9px] uppercase tracking-wider">Produtividade</div>
+                <div className="text-[#E8E4D5] text-sm">{dre.prodReal.toFixed(1)} sc/ha</div>
+              </div>
+            </div>
+            {dre.prodFrustrada && (
+              <div className="mt-3 flex items-center gap-2 text-xs text-[#C97B3F]">
+                <AlertTriangle size={12} /> Safra frustrada — seguro acionado.
+              </div>
+            )}
+          </div>
+
+          {/* Decomposição da Receita */}
+          <div>
+            <h3 className="font-display text-lg mb-2 text-[#D4A574]">
+              Receita
+              <InfoTip title="Como a receita é formada">
+                <p>Sua soja produzida foi vendida em duas partes:</p>
+                <p><strong className="text-[#D4A574]">Travado antecipado</strong>: a parte que você fixou preço lá no setup, antes mesmo de plantar. Esse preço já estava garantido — não importa o que aconteceu depois.</p>
+                <p><strong className="text-[#D4A574]">Físico vendido</strong>: a parte que ficou "livre". Foi vendida ao preço de mercado do momento (spot na colheita, ou na entressafra se você armazenou).</p>
+                <p><strong className="text-[#D4A574]">Indenização de seguro</strong>: se sua produtividade caiu mais de 30% do potencial, o seguro pagou parte do prejuízo.</p>
+                <p className="text-[#b5b1a0] text-xs mt-3">A magia tá em combinar bem: travar uma parte (proteção) e deixar outra livre (chance de upside).</p>
+              </InfoTip>
+            </h3>
+            <div className="bg-[#15170e] border border-[#2a2c1f] rounded">
+              <RowDRE label="Sacas totais produzidas" value={fmtSacas(dre.sacasTotal)} mono />
+              <RowDRE label={`Travado antecipado (${(decisoes.travado*100).toFixed(0)}%)`} sub={`${fmtSacas(dre.sacasTravadas)} × ${fmtBRL(dre.precoTravado, 2)}`} value={fmtBRL(dre.receitaTravada)} />
+              <RowDRE label="Físico vendido" sub={`${fmtSacas(dre.sacasLivres)} × ${fmtBRL(dre.precoMedioLivre, 2)}`} value={fmtBRL(dre.receitaLivre)} />
+              {dre.indenizacao > 0 && <RowDRE label="Indenização de seguro" value={fmtBRL(dre.indenizacao)} positivo />}
+              <RowDRE label="Receita bruta" value={fmtBRL(dre.receitaBruta)} total />
+            </div>
+          </div>
+
+          {/* Custos */}
+          <div>
+            <h3 className="font-display text-lg mb-2 text-[#D4A574]">
+              Custos
+              <InfoTip title="Como os custos são formados">
+                <p>Os custos da safra se dividem em cinco grupos, cada um com lógica própria:</p>
+                <p><strong className="text-[#D4A574]">Insumos</strong>: o pacote tecnológico × área plantada.</p>
+                <p><strong className="text-[#D4A574]">Manejo fito</strong>: o programa de defensivos × área.</p>
+                <p><strong className="text-[#D4A574]">Seguro</strong>: prêmio (% do custo de insumos) cobrado pela seguradora.</p>
+                <p><strong className="text-[#D4A574]">Custos extras (clima)</strong>: gastos não planejados gerados por eventos (replantio, operações extras).</p>
+                <p><strong className="text-[#D4A574]">Custo financeiro</strong>: juros do financiamento ou ágio do barter sobre os insumos+manejo.</p>
+              </InfoTip>
+            </h3>
+            <div className="bg-[#15170e] border border-[#2a2c1f] rounded">
+              <RowDRE
+                label={<span className="inline-flex items-center">Insumos
+                  <InfoTip title="Custo de insumos">
+                    <p>Sementes, adubo, defensivos e tratamento — o pacote tecnológico que você escolheu, multiplicado pela área plantada.</p>
+                    <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                      <div className="flex justify-between"><span className="text-[#8a8a78]">Pacote {PACOTES[decisoes.pacote].label}</span><span>{fmtBRL(PACOTES[decisoes.pacote].custoHa)}/ha</span></div>
+                      <div className="flex justify-between"><span className="text-[#8a8a78]">× Área</span><span>{decisoes.area} ha</span></div>
+                      <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Total</span><span className="text-[#D4A574]">{fmtBRL(dre.custoInsumos)}</span></div>
+                    </div>
+                  </InfoTip>
+                </span>}
+                value={`(${fmtBRL(dre.custoInsumos)})`} negativo
+              />
+              <RowDRE
+                label={<span className="inline-flex items-center">Manejo fito
+                  <InfoTip title="Custo do manejo fitossanitário">
+                    <p>Aplicações extras de fungicida e inseticida, além do que já está no pacote básico. Programa preventivo ou premium adiciona custo, mas reduz perdas por ferrugem, lagarta e percevejo.</p>
+                    <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                      <div className="flex justify-between"><span className="text-[#8a8a78]">Programa {MANEJOS[decisoes.manejo].label}</span><span>{fmtBRL(MANEJOS[decisoes.manejo].custoHa)}/ha</span></div>
+                      <div className="flex justify-between"><span className="text-[#8a8a78]">× Área</span><span>{decisoes.area} ha</span></div>
+                      <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Total</span><span className="text-[#D4A574]">{fmtBRL(dre.custoManejo)}</span></div>
+                    </div>
+                  </InfoTip>
+                </span>}
+                value={`(${fmtBRL(dre.custoManejo)})`} negativo
+              />
+              <RowDRE
+                label={<span className="inline-flex items-center">Seguro
+                  <InfoTip title="Custo do seguro agrícola">
+                    <p>Prêmio que você pagou pra ter cobertura caso a safra quebrasse. Pago integralmente, mesmo em ano bom.</p>
+                    <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                      <div className="flex justify-between"><span className="text-[#8a8a78]">{SEGUROS[decisoes.seguro].label}</span><span>{(SEGUROS[decisoes.seguro].custoPct*100).toFixed(1)}%</span></div>
+                      <div className="flex justify-between"><span className="text-[#8a8a78]">× Custo de insumos</span><span>{fmtBRL(dre.custoInsumos)}</span></div>
+                      <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Total</span><span className="text-[#D4A574]">{fmtBRL(dre.custoSeguro)}</span></div>
+                    </div>
+                    {dre.indenizacao > 0 && <p className="text-xs text-[#8FB36B] mt-2">✓ Indenização recebida: {fmtBRL(dre.indenizacao)} (aparece na receita).</p>}
+                  </InfoTip>
+                </span>}
+                value={`(${fmtBRL(dre.custoSeguro)})`} negativo
+              />
+              <RowDRE
+                label={<span className="inline-flex items-center">Custos extras (clima)
+                  <InfoTip title="Custos extras gerados por eventos">
+                    <p>Gastos não planejados que aparecem por causa de eventos do clima — replantio, operações extras de aplicação, secagem de grão úmido.</p>
+                    {dre.custoExtra > 0 ? (
+                      <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                        <div className="flex justify-between"><span className="text-[#8a8a78]">R$ {(dre.custoExtra / decisoes.area).toFixed(0)}/ha</span><span>× {decisoes.area} ha</span></div>
+                        <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Total</span><span className="text-[#D4A574]">{fmtBRL(dre.custoExtra)}</span></div>
+                      </div>
+                    ) : (
+                      <p className="text-[#8FB36B] text-xs mt-2">✓ Nenhum evento gerou custo extra nessa safra.</p>
+                    )}
+                  </InfoTip>
+                </span>}
+                value={`(${fmtBRL(dre.custoExtra)})`} negativo
+              />
+              <RowDRE
+                label={<span className="inline-flex items-center">Custo financeiro
+                  <InfoTip title="Custo financeiro do financiamento">
+                    <p>Juros do Pronamp ou ágio do barter sobre o valor financiado. Cobrado apenas sobre insumos e manejo (seguro é pago à vista).</p>
+                    <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                      <div className="flex justify-between"><span className="text-[#8a8a78]">{FINANCIAMENTOS[decisoes.financiamento].label}</span><span>{(FINANCIAMENTOS[decisoes.financiamento].custoFin*100).toFixed(1)}%</span></div>
+                      <div className="flex justify-between"><span className="text-[#8a8a78]">× (Insumos + Manejo)</span><span>{fmtBRL(dre.custoInsumos + dre.custoManejo)}</span></div>
+                      <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Total</span><span className="text-[#D4A574]">{fmtBRL(dre.custoFinanceiro)}</span></div>
+                    </div>
+                    {decisoes.financiamento === 'avista' && <p className="text-[#8FB36B] text-xs mt-2">✓ À vista = sem custo financeiro.</p>}
+                  </InfoTip>
+                </span>}
+                value={`(${fmtBRL(dre.custoFinanceiro)})`} negativo
+              />
+              <RowDRE label="Custo total" value={`(${fmtBRL(dre.custoTotal)})`} total />
+            </div>
+          </div>
+
+          {/* Mercado final */}
+          <div>
+            <h3 className="font-display text-lg mb-2 text-[#D4A574]">
+              Mercado no fechamento
+              <InfoTip title="Mercado no fechamento">
+                <p>É a "fotografia" do mercado da soja no momento em que a sua safra terminou — pra você comparar com o que escolheu lá atrás.</p>
+                <p><strong className="text-[#D4A574]">Futuro final</strong>: cotação do contrato futuro da soja na B3 no fechamento da safra. É a referência nacional, em R$ por saca de 60kg.</p>
+                <p><strong className="text-[#D4A574]">Spot MT</strong>: preço físico real em Sorriso/MT. Sempre menor que o futuro porque a soja precisa ser transportada até o porto. <em>Spot = Futuro + Basis</em>.</p>
+                <p><strong className="text-[#D4A574]">Basis final</strong>: a "diferença regional" naquele momento. Quanto vale a soja em Sorriso vs a referência B3. Quando frete sobe ou silo enche, o basis fica mais negativo.</p>
+                <p><strong className="text-[#D4A574]">vs travado</strong>: comparação entre o preço que você travou no setup e o spot atual. Se o spot terminou mais baixo que o seu travamento, você "travou bem" — vendeu mais caro do que conseguiria hoje. Se o spot subiu acima do travado, você perdeu upside.</p>
+                <p className="text-[#b5b1a0] text-xs mt-3">Exemplo: você travou em R$118 lá no início. O spot terminou em R$111. Você ganhou R$7 por saca vs vender hoje. ✓ Travou bem.</p>
+              </InfoTip>
+            </h3>
+            <div className="bg-[#0f110a] border border-[#2a2c1f] rounded p-3 font-mono text-xs grid grid-cols-2 gap-x-3 gap-y-1.5">
+              <div className="flex justify-between"><span className="text-[#8a8a78]">Futuro final</span><span className="text-[#E8E4D5]">{dre.futuroFinal.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-[#8a8a78]">Spot MT</span><span className="text-[#E8E4D5]">{dre.precoSpot.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-[#8a8a78]">Basis final</span><span className="text-[#E8E4D5]">{dre.basisFinal.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-[#8a8a78]">vs travado</span><span className={dre.precoSpot > dre.precoTravado ? 'text-[#C44536]' : 'text-[#8FB36B]'}>{dre.precoSpot > dre.precoTravado ? 'perdeu upside' : 'travou bem'}</span></div>
+            </div>
+          </div>
+
+          {/* Histórico de eventos */}
+          <div>
+            <h3 className="font-display text-lg mb-2 text-[#D4A574]">A safra em eventos</h3>
+            {eventLog.length === 0 ? (
+              <div className="text-[#7a7a68] text-sm">Safra sem grandes surpresas.</div>
+            ) : (
+              <div className="space-y-1">
+                {eventLog.map((e, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs py-1.5 border-b border-[#2a2c1f]/50 last:border-0">
+                    <e.icon size={12} className="mt-0.5 flex-shrink-0" style={{ color: TIPO_COR[e.tipo] }} />
+                    <div className="flex-1 text-[#c8c4b5]">{e.titulo}</div>
+                    <div className="text-[#5a5a4e] font-mono text-[10px] uppercase">{e.fase}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button onClick={onReset} className="w-full bg-[#D4A574] hover:bg-[#E8B547] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+            <RotateCcw size={16} /> jogar outra safra
+          </button>
+        </div>
+      );
+    }
+
+    function RowDRE({ label, sub, value, total, negativo, positivo, mono }) {
+      return (
+        <div className={`flex justify-between items-baseline px-3 py-2.5 border-b border-[#2a2c1f]/60 last:border-0 ${total ? 'bg-[#1a1c12]' : ''}`}>
+          <div className="flex-1 min-w-0">
+            <div className={`text-sm ${total ? 'text-[#E8E4D5] font-medium' : 'text-[#c8c4b5]'}`}>{label}</div>
+            {sub && <div className="text-[10px] text-[#7a7a68] font-mono mt-0.5">{sub}</div>}
+          </div>
+          <div className={`font-mono text-sm ${total ? 'text-[#D4A574] font-medium' : negativo ? 'text-[#C97B3F]' : positivo ? 'text-[#8FB36B]' : 'text-[#E8E4D5]'}`}>
+            {value}
+          </div>
+        </div>
+      );
+    }
+
+/* === FIM DO COMPONENTE === */
+
+    document.getElementById('loading')?.remove();
+    __createRoot(document.getElementById('root')).render(<AgroGP />);
+  </script>
+</body>
+</html>
