@@ -200,23 +200,6 @@
       return { actual, forecast, confidence: Math.round(confidence * 100) };
     }
 
-    // Atualiza forecast ao longo da safra (NOAA/CFS revisa mensalmente)
-    function atualizarForecast(enso) {
-      if (!enso || !enso.actual) return enso;
-      // Confidence sobe naturalmente conforme nos aproximamos do desfecho
-      let novaConf = Math.min(96, enso.confidence + 3 + Math.floor(Math.random() * 6));
-      let novoForecast = enso.forecast;
-      // 35% de chance da previsão revisar pra mais perto do regime real
-      if (Math.random() < 0.35 && enso.forecast !== enso.actual) {
-        const ordered = ['ninho_forte', 'ninho_fraco', 'neutro', 'ninha_fraca', 'ninha_forte'];
-        const curIdx = ordered.indexOf(enso.forecast);
-        const realIdx = ordered.indexOf(enso.actual);
-        const dir = realIdx > curIdx ? 1 : -1;
-        novoForecast = ordered[curIdx + dir];
-      }
-      return { ...enso, forecast: novoForecast, confidence: novaConf };
-    }
-
     // ============================================================
     // DERIVA NATURAL DO MERCADO ENTRE FASES (random walk + sazonalidade)
     // ============================================================
@@ -250,28 +233,67 @@
       };
     }
 
-    // Drift de mercado: dólar, CBOT e basis se movem CONTINUAMENTE a cada fase (5 meses de safra),
-    // não só quando rola evento. Calibrado por volatilidade histórica anual:
-    // CBOT soja ~20-25% a.a., USD/BRL ~12-15% a.a., basis MT com forte sazonalidade na colheita.
-    function aplicarDriftMercado(s, faseDestino) {
-      // soma de 2 uniformes => distribuição triangular centrada em 0 (mais natural que uniforme)
-      const drift = (escala) => ((Math.random() + Math.random()) - 1) * escala;
-      s.modCbot *= (1 + drift(0.045)); // ±~4,5% por fase no futuro CBOT
-      s.modPtax *= (1 + drift(0.035)); // ±~3,5% por fase no câmbio
-      // Basis sazonal: enfraquece (mais negativo) aproximando a colheita (silo cheio, frete caro),
-      // recupera na entressafra. Valores aditivos em R$/sc.
-      const basisSazonal = {
-        'plantio':        -0.4,
-        'vegetativo':     -0.8,
-        'enchimento':     -1.8,
-        'colheita':       -3.2,  // pico de oferta: pior basis do ano
-        'comercializacao': 3.0   // pós-colheita: basis recupera
+    // Atualiza forecast e confiança ao longo da safra.
+    // Em vida real, forecasts ENSO são atualizados mensalmente (CFS/NOAA, INMET, ECMWF).
+    // Confidence sobe naturalmente conforme novos dados chegam.
+    // Se o forecast inicial estava errado, ele tende a se aproximar do regime real.
+    function atualizarForecast(enso, faseDestino, rng = Math.random) {
+      const boostPorFase = {
+        'setup-plantio':           5,
+        'plantio-eventos':         7,
+        'setup-manejo':            9,
+        'vegetativo-eventos':     12,
+        'enchimento-eventos':      7,
+        'colheita-eventos':        3,
+        'setup-venda':             2,
+        'comercializacao-eventos': 0
       };
-      const faseBase = faseDestino.replace('-eventos', '');
-      s.modBasis += (basisSazonal[faseBase] ?? 0) + drift(0.8);
+      const boost = boostPorFase[faseDestino] || 0;
+      if (boost === 0 && enso.forecast === enso.actual) {
+        return { ...enso, revisedThisPhase: false };
+      }
+      const novaConfianca = Math.min(97, (enso.confidence || 70) + boost);
+
+      // Revisão só rola em fases de eventos (pra aparecer junto dos outros eventos)
+      // e só se o forecast estiver diferente do regime real
+      const ehFaseDeEventos = faseDestino.endsWith('-eventos');
+      let novoForecast = enso.forecast;
+      let revisedThisPhase = false;
+      let prevForecast = enso.prevForecast || null;
+
+      if (ehFaseDeEventos && enso.forecast !== enso.actual && boost > 0) {
+        // Probabilidade de revisão cresce com o boost
+        const chance = (boost / 100) * 2.8;
+        if (rng() < chance) {
+          const ordem = ['ninho_forte', 'ninho_fraco', 'neutro', 'ninha_fraca', 'ninha_forte'];
+          const fIdx = ordem.indexOf(enso.forecast);
+          const aIdx = ordem.indexOf(enso.actual);
+          const direcao = aIdx > fIdx ? 1 : -1;
+          novoForecast = ordem[fIdx + direcao];
+          revisedThisPhase = true;
+          prevForecast = enso.forecast;
+        }
+      }
+
+      return {
+        actual: enso.actual,
+        forecast: novoForecast,
+        confidence: novaConfianca,
+        revisedThisPhase,
+        prevForecast
+      };
     }
 
-
+    const EVENTOS = [
+      // --- PLANTIO ---
+      {
+        id: 'chuva_plantio',
+        fase: 'plantio',
+        prob: (d) => JANELAS[d.plantio].riscoChuvaPlantio,
+        titulo: 'Chuva atrasa o plantio',
+        icon: CloudRain,
+        tipo: 'climatico',
+        desc: 'Janela apertada. Parte da área foi replantada e o stand ficou irregular.',
         impactoTexto: () => '−6% na produtividade · +R$ 180/ha de custo extra',
         explicacao: 'Chuva intensa no plantio força replantio em parte da área. O stand fica desigual (algumas áreas com mais plantas, outras com menos) e o potencial cai. O replantio gera custo extra de semente, defensivo e operação.',
         aplicar: (s) => { s.modProd *= 0.94; s.custoExtra += 180; }
@@ -1059,20 +1081,40 @@
       }, [fase, decisoes, simState]);
 
       function avancarFase(proxima) {
-        const novoState = { ...simState };
-
-        // Drift de mercado a cada avanço de fase (exceto ao consolidar no DRE)
+        // Aplica deriva de mercado (random walk + sazonalidade do basis)
+        let novoState = { ...simState };
         if (proxima !== 'dre') {
-          aplicarDriftMercado(novoState, proxima);
+          novoState = aplicarDeriva(novoState, proxima);
         }
 
-        // Se for tela de eventos, rola eventos da fase base sobre o estado já com drift
+        // Atualiza forecast climático: confidence sobe, e há chance de revisão
+        const novoEnso = atualizarForecast(enso, proxima);
+        setEnso(novoEnso);
+
+        // Se for tela de eventos, rola eventos da fase base
         if (proxima.endsWith('-eventos')) {
           const faseBase = proxima.replace('-eventos', '');
           const novos = rolarEventosDaFase(faseBase, decisoes, enso.actual);
           novos.forEach(e => e.aplicar(novoState, decisoes));
-          setFaseEventos(novos);
-          setEventLog(prev => [...prev, ...novos.map(e => ({ ...e, fase: faseBase }))]);
+
+          // Se houve revisão de forecast nesta fase, insere como evento no topo
+          const eventosFinais = [...novos];
+          if (novoEnso.revisedThisPhase && novoEnso.prevForecast) {
+            const prevLabel = ENSO_REGIMES[novoEnso.prevForecast].label;
+            const newLabel = ENSO_REGIMES[novoEnso.forecast].label;
+            eventosFinais.unshift({
+              id: 'forecast_revisado_' + Date.now(),
+              titulo: 'Forecast climático revisado',
+              desc: `Modelos meteorológicos atualizados. Agora indicam ${newLabel} (era ${prevLabel}). Confiança subiu pra ${novoEnso.confidence}%.`,
+              icon: Info,
+              tipo: 'mercado',
+              impactoTexto: () => `Confiança ${novoEnso.confidence}% · ${newLabel}`,
+              explicacao: 'Forecasts ENSO são atualizados mensalmente pelo CFS/NOAA, INMET e ECMWF. Conforme novos dados de temperatura do Pacífico chegam, os modelos refinam a previsão. Quanto mais próximo da floração, mais precisa fica a leitura do regime.'
+            });
+          }
+
+          setFaseEventos(eventosFinais);
+          setEventLog(prev => [...prev, ...eventosFinais.map(e => ({ ...e, fase: faseBase }))]);
         } else {
           setFaseEventos([]);
         }
