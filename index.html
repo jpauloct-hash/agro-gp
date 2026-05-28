@@ -131,46 +131,49 @@
     // ============================================================
     // REGIMES CLIMÁTICOS ENSO (El Niño / La Niña)
     // ============================================================
+    // Multiplicadores baseados em comportamento histórico:
+    // Em El Niño bem caracterizado, veranico de 16+ dias no MT é evento raro (<10% das safras).
+    // Em La Niña forte, veranico é quase certo (>60% das safras).
     const ENSO_REGIMES = {
       ninho_forte: {
         label: 'El Niño forte',
-        cor: '#4A8FBC',
-        descricaoCurta: 'Chuva acima do normal',
-        impactoMT: 'Cenário muito favorável pra produtividade no MT. Veranico improvável e enchimento garantido. Único risco: excesso de chuva atrapalhando a colheita.',
-        hedgeHint: 'Forecast favorável: hedge mais agressivo (50-70%) faz sentido. Risco de quebra é baixo.',
-        multipliers: { chuva_plantio: 1.4, veranico_floracao: 0.30, seca_enchimento: 0.30, chuva_excelente: 1.4, chuva_colheita: 1.6 }
+        cor: '#C44536',
+        descricaoCurta: 'Alto risco de veranico e calor no MT',
+        impactoMT: 'No Centro-Oeste, El Niño forte traz chuva irregular, calor e veranicos. Foi o que aconteceu em 2023/24 — a pior safra de MT em 10 anos, quebra de ~21% (Aprosoja-MT). O risco se concentra no início do ciclo e na floração.',
+        hedgeHint: 'Risco alto de quebra. Hedge mínimo (0-15%) — não se comprometa com entrega física que pode não acontecer.',
+        multipliers: { chuva_plantio: 0.55, veranico_floracao: 2.20, seca_enchimento: 2.50, chuva_excelente: 0.20, chuva_colheita: 0.40 }
       },
       ninho_fraco: {
         label: 'El Niño fraco',
-        cor: '#6B9DBE',
-        descricaoCurta: 'Chuva levemente acima da média',
-        impactoMT: 'Geralmente positivo pro MT. Risco climático abaixo da média histórica, leve aumento de risco de chuva na colheita.',
-        hedgeHint: 'Cenário positivo. Hedge moderado (40-60%) é razoável.',
-        multipliers: { chuva_plantio: 1.15, veranico_floracao: 0.70, seca_enchimento: 0.70, chuva_excelente: 1.20, chuva_colheita: 1.25 }
+        cor: '#C97B3F',
+        descricaoCurta: 'Chuva irregular, risco moderado de veranico',
+        impactoMT: 'El Niño fraco no MT deixa as chuvas irregulares, com risco moderado-alto de veranico no início do ciclo e na floração. Pede cautela.',
+        hedgeHint: 'Cautela. Hedge moderado-baixo (15-35%). Quebra parcial é cenário provável.',
+        multipliers: { chuva_plantio: 0.85, veranico_floracao: 1.50, seca_enchimento: 1.50, chuva_excelente: 0.55, chuva_colheita: 0.70 }
       },
       neutro: {
         label: 'ENSO Neutro',
         cor: '#7a7a68',
         descricaoCurta: 'Padrão climático normal',
-        impactoMT: 'Sem viés climático significativo. Probabilidades de eventos seguem média histórica do MT.',
+        impactoMT: 'Sem viés climático significativo. Probabilidades seguem a média histórica do MT. A distribuição das chuvas no período crítico (nov–fev) é o que decide a safra.',
         hedgeHint: 'Cenário base. Hedge entre 30-50% é o padrão da maioria dos produtores.',
         multipliers: { chuva_plantio: 1.0, veranico_floracao: 1.0, seca_enchimento: 1.0, chuva_excelente: 1.0, chuva_colheita: 1.0 }
       },
       ninha_fraca: {
         label: 'La Niña fraca',
-        cor: '#C97B3F',
-        descricaoCurta: 'Chuva levemente abaixo da média',
-        impactoMT: 'Atenção redobrada com janela de plantio. Risco moderado de veranico em janeiro e seca leve no enchimento.',
-        hedgeHint: 'Cuidado. Reduza hedge pra 20-40%. Quebra parcial é possível.',
-        multipliers: { chuva_plantio: 0.85, veranico_floracao: 1.4, seca_enchimento: 1.4, chuva_excelente: 0.70, chuva_colheita: 0.80 }
+        cor: '#6B9DBE',
+        descricaoCurta: 'Chuvas geralmente regulares no MT',
+        impactoMT: 'Ao contrário do Sul do país (que sofre seca em La Niña), o Centro-Oeste costuma ter chuvas mais regulares. Cenário tipicamente favorável pra produtividade no MT.',
+        hedgeHint: 'Cenário positivo pro MT. Hedge moderado-alto (50-65%) é razoável.',
+        multipliers: { chuva_plantio: 1.20, veranico_floracao: 0.40, seca_enchimento: 0.50, chuva_excelente: 1.30, chuva_colheita: 1.40 }
       },
       ninha_forte: {
         label: 'La Niña forte',
-        cor: '#C44536',
-        descricaoCurta: 'Padrão seco intenso',
-        impactoMT: 'Cenário desafiador. Veranico provável, déficit hídrico no enchimento, perdas históricas de 15–30% no MT.',
-        hedgeHint: 'Risco alto de quebra. Hedge mínimo (0-20%) — não se comprometa com entrega física que pode não ter.',
-        multipliers: { chuva_plantio: 0.60, veranico_floracao: 2.0, seca_enchimento: 2.2, chuva_excelente: 0.30, chuva_colheita: 0.50 }
+        cor: '#4A8FBC',
+        descricaoCurta: 'Chuvas abundantes no MT (risco fica no Sul)',
+        impactoMT: 'La Niña forte concentra chuva no Centro-Oeste. Pro MT é geralmente bom pra produtividade — o risco maior fica no Sul (RS/PR). Único cuidado: excesso de chuva pode atrapalhar a colheita e favorecer doenças.',
+        hedgeHint: 'Forecast favorável: hedge agressivo (60-80%) faz sentido. Risco de quebra baixo no MT.',
+        multipliers: { chuva_plantio: 1.50, veranico_floracao: 0.15, seca_enchimento: 0.20, chuva_excelente: 1.60, chuva_colheita: 1.80 }
       }
     };
 
@@ -197,16 +200,78 @@
       return { actual, forecast, confidence: Math.round(confidence * 100) };
     }
 
-    const EVENTOS = [
-      // --- PLANTIO ---
-      {
-        id: 'chuva_plantio',
-        fase: 'plantio',
-        prob: (d) => JANELAS[d.plantio].riscoChuvaPlantio,
-        titulo: 'Chuva atrasa o plantio',
-        icon: CloudRain,
-        tipo: 'climatico',
-        desc: 'Janela apertada. Parte da área foi replantada e o stand ficou irregular.',
+    // Atualiza forecast ao longo da safra (NOAA/CFS revisa mensalmente)
+    function atualizarForecast(enso) {
+      if (!enso || !enso.actual) return enso;
+      // Confidence sobe naturalmente conforme nos aproximamos do desfecho
+      let novaConf = Math.min(96, enso.confidence + 3 + Math.floor(Math.random() * 6));
+      let novoForecast = enso.forecast;
+      // 35% de chance da previsão revisar pra mais perto do regime real
+      if (Math.random() < 0.35 && enso.forecast !== enso.actual) {
+        const ordered = ['ninho_forte', 'ninho_fraco', 'neutro', 'ninha_fraca', 'ninha_forte'];
+        const curIdx = ordered.indexOf(enso.forecast);
+        const realIdx = ordered.indexOf(enso.actual);
+        const dir = realIdx > curIdx ? 1 : -1;
+        novoForecast = ordered[curIdx + dir];
+      }
+      return { ...enso, forecast: novoForecast, confidence: novaConf };
+    }
+
+    // ============================================================
+    // DERIVA NATURAL DO MERCADO ENTRE FASES (random walk + sazonalidade)
+    // ============================================================
+    // Magnitudes calibradas pela volatilidade histórica:
+    // - PTAX: ~2-3% ao mês → ±3-5% em transições de 1-3 meses
+    // - Soja B3: ~3-5% ao mês → ±4-6% por transição
+    // - Basis MT: piora -R$2 a -R$3 aproximando colheita; melhora +R$2 a +R$4 na entressafra
+    const DRIFT_BY_FASE = {
+      'setup-plantio':           { meses: 1,   ptax: 0.025, cbot: 0.025, basisSazonal: 0.5,  basisRand: 1.0 },
+      'plantio-eventos':         { meses: 2,   ptax: 0.035, cbot: 0.045, basisSazonal: -0.8, basisRand: 1.2 },
+      'setup-manejo':            { meses: 1,   ptax: 0.022, cbot: 0.030, basisSazonal: -0.8, basisRand: 1.0 },
+      'vegetativo-eventos':      { meses: 1,   ptax: 0.025, cbot: 0.035, basisSazonal: -1.5, basisRand: 1.5 },
+      'enchimento-eventos':      { meses: 1,   ptax: 0.025, cbot: 0.035, basisSazonal: -2.0, basisRand: 1.5 },
+      'colheita-eventos':        { meses: 2,   ptax: 0.035, cbot: 0.040, basisSazonal: -2.5, basisRand: 2.0 },
+      'setup-venda':             { meses: 0.5, ptax: 0.015, cbot: 0.018, basisSazonal: 1.0,  basisRand: 1.0 },
+      'comercializacao-eventos': { meses: 3,   ptax: 0.045, cbot: 0.055, basisSazonal: 3.5,  basisRand: 2.5 }
+    };
+
+    function aplicarDeriva(simState, faseAlvo) {
+      const cfg = DRIFT_BY_FASE[faseAlvo];
+      if (!cfg) return simState;
+      // Movimento uniforme em [-max, +max] — random walk simples
+      const ptaxMove = (Math.random() - 0.5) * 2 * cfg.ptax;
+      const cbotMove = (Math.random() - 0.5) * 2 * cfg.cbot;
+      const basisMove = cfg.basisSazonal + (Math.random() - 0.5) * 2 * cfg.basisRand;
+      return {
+        ...simState,
+        modPtax: simState.modPtax * (1 + ptaxMove),
+        modCbot: simState.modCbot * (1 + cbotMove),
+        modBasis: simState.modBasis + basisMove
+      };
+    }
+
+    // Drift de mercado: dólar, CBOT e basis se movem CONTINUAMENTE a cada fase (5 meses de safra),
+    // não só quando rola evento. Calibrado por volatilidade histórica anual:
+    // CBOT soja ~20-25% a.a., USD/BRL ~12-15% a.a., basis MT com forte sazonalidade na colheita.
+    function aplicarDriftMercado(s, faseDestino) {
+      // soma de 2 uniformes => distribuição triangular centrada em 0 (mais natural que uniforme)
+      const drift = (escala) => ((Math.random() + Math.random()) - 1) * escala;
+      s.modCbot *= (1 + drift(0.045)); // ±~4,5% por fase no futuro CBOT
+      s.modPtax *= (1 + drift(0.035)); // ±~3,5% por fase no câmbio
+      // Basis sazonal: enfraquece (mais negativo) aproximando a colheita (silo cheio, frete caro),
+      // recupera na entressafra. Valores aditivos em R$/sc.
+      const basisSazonal = {
+        'plantio':        -0.4,
+        'vegetativo':     -0.8,
+        'enchimento':     -1.8,
+        'colheita':       -3.2,  // pico de oferta: pior basis do ano
+        'comercializacao': 3.0   // pós-colheita: basis recupera
+      };
+      const faseBase = faseDestino.replace('-eventos', '');
+      s.modBasis += (basisSazonal[faseBase] ?? 0) + drift(0.8);
+    }
+
+
         impactoTexto: () => '−6% na produtividade · +R$ 180/ha de custo extra',
         explicacao: 'Chuva intensa no plantio força replantio em parte da área. O stand fica desigual (algumas áreas com mais plantas, outras com menos) e o potencial cai. O replantio gera custo extra de semente, defensivo e operação.',
         aplicar: (s) => { s.modProd *= 0.94; s.custoExtra += 180; }
@@ -994,18 +1059,25 @@
       }, [fase, decisoes, simState]);
 
       function avancarFase(proxima) {
-        // Se for tela de eventos, rola eventos da fase base
+        const novoState = { ...simState };
+
+        // Drift de mercado a cada avanço de fase (exceto ao consolidar no DRE)
+        if (proxima !== 'dre') {
+          aplicarDriftMercado(novoState, proxima);
+        }
+
+        // Se for tela de eventos, rola eventos da fase base sobre o estado já com drift
         if (proxima.endsWith('-eventos')) {
           const faseBase = proxima.replace('-eventos', '');
           const novos = rolarEventosDaFase(faseBase, decisoes, enso.actual);
-          const novoState = { ...simState };
           novos.forEach(e => e.aplicar(novoState, decisoes));
-          setSimState(novoState);
           setFaseEventos(novos);
           setEventLog(prev => [...prev, ...novos.map(e => ({ ...e, fase: faseBase }))]);
         } else {
           setFaseEventos([]);
         }
+
+        setSimState(novoState);
         setFase(proxima);
       }
 
