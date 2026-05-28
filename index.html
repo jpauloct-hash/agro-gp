@@ -72,6 +72,28 @@
   <script type="text/babel" data-type="module" data-presets="react">
     import { createRoot as __createRoot } from 'react-dom/client';
 
+    // Captura erros globais e mostra na tela em vez de travar no loading
+    window.addEventListener('error', (e) => {
+      const l = document.getElementById('loading');
+      if (l) {
+        l.innerHTML = '<div style="padding:20px; font-family:monospace; font-size:13px; color:#ff8a65; max-width:90vw; word-break:break-word; line-height:1.5;">' +
+          '<div style="color:#D4A574; font-size:16px; margin-bottom:12px; font-family:serif; font-style:italic;">Erro de carregamento</div>' +
+          '<div>' + (e.message || 'erro desconhecido') + '</div>' +
+          (e.filename ? '<div style="margin-top:8px; color:#7a7a68;">em ' + e.filename + ':' + e.lineno + ':' + e.colno + '</div>' : '') +
+          '</div>';
+      }
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      const l = document.getElementById('loading');
+      if (l) {
+        l.innerHTML = '<div style="padding:20px; font-family:monospace; font-size:13px; color:#ff8a65; max-width:90vw; word-break:break-word; line-height:1.5;">' +
+          '<div style="color:#D4A574; font-size:16px; margin-bottom:12px; font-family:serif; font-style:italic;">Promise rejeitada</div>' +
+          '<div>' + (e.reason?.message || e.reason || 'erro desconhecido') + '</div>' +
+          (e.reason?.stack ? '<div style="margin-top:8px; color:#7a7a68; white-space:pre-wrap;">' + e.reason.stack + '</div>' : '') +
+          '</div>';
+      }
+    });
+
 /* === COLE AQUI O CONTEÚDO DO COMPONENTE === */
 /* placeholder — será substituído pelo bash */
     import React, { useState, useMemo } from 'react';
@@ -1835,8 +1857,20 @@
 
 /* === FIM DO COMPONENTE === */
 
-    document.getElementById('loading')?.remove();
-    __createRoot(document.getElementById('root')).render(<AgroGP />);
+    try {
+      document.getElementById('loading')?.remove();
+      __createRoot(document.getElementById('root')).render(<AgroGP />);
+    } catch (err) {
+      const l = document.getElementById('loading') || document.getElementById('root');
+      if (l) {
+        l.innerHTML = '<div style="padding:20px; font-family:monospace; font-size:13px; color:#ff8a65; max-width:90vw; word-break:break-word; line-height:1.5;">' +
+          '<div style="color:#D4A574; font-size:16px; margin-bottom:12px; font-family:serif; font-style:italic;">Erro ao renderizar</div>' +
+          '<div>' + (err.message || err) + '</div>' +
+          (err.stack ? '<div style="margin-top:8px; color:#7a7a68; white-space:pre-wrap;">' + err.stack + '</div>' : '') +
+          '</div>';
+      }
+      throw err;
+    }
   </script>
 </body>
 </html>
