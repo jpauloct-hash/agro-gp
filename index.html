@@ -100,17 +100,17 @@
     import { Sprout, Wallet, CloudRain, Bug, TrendingUp, Truck, Wheat, AlertTriangle, CheckCircle2, ArrowRight, RotateCcw, Sun, Droplets, DollarSign, Calendar, Info, X } from 'lucide-react';
 
     // ============================================================
-    // AGRO GP — MVP Soja Mato Grosso · Safra 2025/26
+    // AGRO GP — MVP Soja Mato Grosso · Safra 2026/27
     // ============================================================
 
-    // --- Dados de mercado iniciais (snapshot plausível nov/2025) ---
+    // --- Dados de mercado iniciais (snapshot ago/2026 — safra 26/27) ---
     const INITIAL_MARKET = {
-      futuroJulho: 134.50,   // R$/sc 60kg — SFI B3 jul/26
-      basisMT: -16.50,       // desconto Sorriso vs Paranaguá
-      spotMT: 118.00,        // ≈ futuro + basis
-      ptax: 5.38,
-      selic: 11.25,
-      cbot: 10.65            // USD/bushel
+      futuroJulho: 133.02,   // R$/sc 60kg — SFI B3 jul/27
+      basisMT: -29.82,       // = spot - futuro (103,20 - 133,02)
+      spotMT: 103.20,        // físico Sorriso
+      ptax: 5.05,
+      selic: 14.50,
+      cbot: 11.99            // USD/bushel
     };
 
     // --- Pacotes tecnológicos ---
@@ -687,19 +687,19 @@
     // Mapa de fase → mês/descrição (calendário do ciclo da soja MT)
     const FASE_INFO = {
       'intro':                   { mes: 'Pré-safra',           descricao: 'Ponto de partida' },
-      'setup-pacote':            { mes: 'Agosto 2025',         descricao: 'Definindo tecnologia' },
-      'setup-fin':               { mes: 'Agosto 2025',         descricao: 'Estruturando o capital' },
-      'setup-seg':               { mes: 'Agosto 2025',         descricao: 'Proteção de risco' },
-      'setup-trava':             { mes: 'Agosto 2025',         descricao: 'Decisão de hedge' },
-      'setup-plantio':           { mes: 'Setembro 2025',       descricao: 'Escolha da janela' },
-      'plantio-eventos':         { mes: 'Out–Nov 2025',        descricao: 'Plantio em andamento' },
-      'setup-manejo':            { mes: 'Dezembro 2025',       descricao: 'Vegetativo iniciando' },
-      'vegetativo-eventos':      { mes: 'Dez 25 – Jan 26',     descricao: 'Floração — fase crítica' },
-      'enchimento-eventos':      { mes: 'Jan – Fev 2026',      descricao: 'Enchimento de grão' },
-      'colheita-eventos':        { mes: 'Fev – Abr 2026',      descricao: 'Colheita' },
-      'setup-venda':             { mes: 'Março 2026',          descricao: 'Decisão de venda' },
-      'comercializacao-eventos': { mes: 'Mar – Jul 2026',      descricao: 'Comercialização' },
-      'dre':                     { mes: 'Julho 2026',          descricao: 'Fim da safra' }
+      'setup-pacote':            { mes: 'Agosto 2026',         descricao: 'Definindo tecnologia' },
+      'setup-fin':               { mes: 'Agosto 2026',         descricao: 'Estruturando o capital' },
+      'setup-seg':               { mes: 'Agosto 2026',         descricao: 'Proteção de risco' },
+      'setup-trava':             { mes: 'Agosto 2026',         descricao: 'Decisão de hedge' },
+      'setup-plantio':           { mes: 'Setembro 2026',       descricao: 'Escolha da janela' },
+      'plantio-eventos':         { mes: 'Out–Nov 2026',        descricao: 'Plantio em andamento' },
+      'setup-manejo':            { mes: 'Dezembro 2026',       descricao: 'Vegetativo iniciando' },
+      'vegetativo-eventos':      { mes: 'Dez 26 – Jan 27',     descricao: 'Floração — fase crítica' },
+      'enchimento-eventos':      { mes: 'Jan – Fev 2027',      descricao: 'Enchimento de grão' },
+      'colheita-eventos':        { mes: 'Fev – Abr 2027',      descricao: 'Colheita' },
+      'setup-venda':             { mes: 'Março 2027',          descricao: 'Decisão de venda' },
+      'comercializacao-eventos': { mes: 'Mar – Jul 2027',      descricao: 'Comercialização' },
+      'dre':                     { mes: 'Julho 2027',          descricao: 'Fim da safra' }
     };
 
     function MonthLine({ fase }) {
@@ -995,7 +995,7 @@
       return (
         <div className="bg-[#0f110a] border border-[#2a2c1f] rounded p-3 text-[11px] font-mono">
           <div className="text-[#7a7a68] uppercase tracking-widest text-[9px] mb-2 flex items-center gap-2">
-            <Calendar size={10} /> Mercado · ago/2025
+            <Calendar size={10} /> Mercado · ago/2026
             <InfoTip title="O que é esse painel?">
               <p>É a fotografia real do mercado no dia em que você começa a safra. Esses seis indicadores definem todo o resto: quanto você vai gastar, quanto vai receber e qual o risco do ano.</p>
               <p>No simulador, esses valores são o ponto de partida. Daí pra frente, os eventos aleatórios mexem neles ao longo dos 11 meses da safra.</p>
@@ -1003,11 +1003,11 @@
           </div>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
             <div className="flex justify-between items-center">
-              <span className="text-[#8a8a78] flex items-center">SFI jul/26
-                <InfoTip title="SFI jul/26 — Futuro da soja na B3">
-                  <p><strong className="text-[#D4A574]">O que é</strong>: contrato futuro de soja da B3 (bolsa brasileira). "SFI" é o código do contrato (Soja FOB Itacoatiara). "jul/26" é o vencimento — julho de 2026, quando o contrato liquida.</p>
+              <span className="text-[#8a8a78] flex items-center">SFI jul/27
+                <InfoTip title="SFI jul/27 — Futuro da soja na B3">
+                  <p><strong className="text-[#D4A574]">O que é</strong>: contrato futuro de soja da B3 (bolsa brasileira). "SFI" é o código do contrato (Soja FOB Itacoatiara). "jul/27" é o vencimento — julho de 2027, quando o contrato liquida.</p>
                   <p><strong className="text-[#D4A574]">Por que importa</strong>: é o preço de referência para travamentos antecipados no Brasil. Quando você fixa preço antes da colheita, geralmente é via esse contrato (ou contrato a termo derivado dele).</p>
-                  <p><strong className="text-[#D4A574]">O número</strong>: R$ 134,50 por saca de 60kg. Mas atenção — em Sorriso/MT a saca vale menos, por causa do <em>basis</em>.</p>
+                  <p><strong className="text-[#D4A574]">O número</strong>: R$ 133,02 por saca de 60kg. Mas atenção — em Sorriso/MT a saca vale menos, por causa do <em>basis</em>.</p>
                 </InfoTip>
               </span>
               <span className="text-[#E8E4D5]">{INITIAL_MARKET.futuroJulho.toFixed(2)}</span>
@@ -1017,7 +1017,7 @@
                 <InfoTip title="Spot MT — preço físico em Mato Grosso">
                   <p><strong className="text-[#D4A574]">O que é</strong>: "spot" significa à vista, agora, na entrega imediata. É o preço real da saca no balcão da fazenda ou armazém em Sorriso/MT.</p>
                   <p><strong className="text-[#D4A574]">Por que importa</strong>: é o preço que você efetivamente embolsa se vende a soja hoje, sem hedge nem trava. Quando o jogador escolhe "vender na colheita", é por esse preço.</p>
-                  <p><strong className="text-[#D4A574]">Como é formado</strong>: Spot = Futuro + Basis. Aqui: 134,50 + (−16,50) = 118,00.</p>
+                  <p><strong className="text-[#D4A574]">Como é formado</strong>: Spot = Futuro + Basis. Aqui: 133,02 + (−29,82) = 103,20.</p>
                 </InfoTip>
               </span>
               <span className="text-[#E8E4D5]">{INITIAL_MARKET.spotMT.toFixed(2)}</span>
@@ -1027,7 +1027,7 @@
                 <InfoTip title="PTAX — taxa de câmbio oficial">
                   <p><strong className="text-[#D4A574]">O que é</strong>: taxa de câmbio (USD/BRL) calculada pelo Banco Central como média ponderada das negociações de dólar do dia. É a referência oficial do mercado.</p>
                   <p><strong className="text-[#D4A574]">Por que importa muito pro produtor</strong>: a soja é uma commodity dolarizada. O preço lá fora (Chicago) é em dólar. Quando o dólar sobe, a soja em reais sobe junto, mesmo sem mudar a cotação internacional.</p>
-                  <p><strong className="text-[#D4A574]">Impacto prático</strong>: se o PTAX vai de 5,38 pra 5,80, sua saca pode subir R$ 5–8 só por isso. Se cai pra 5,00, sua receita encolhe.</p>
+                  <p><strong className="text-[#D4A574]">Impacto prático</strong>: se o PTAX vai de 5,05 pra 5,45, sua saca pode subir R$ 5–8 só por isso. Se cai pra 4,75, sua receita encolhe.</p>
                 </InfoTip>
               </span>
               <span className="text-[#E8E4D5]">{INITIAL_MARKET.ptax.toFixed(2)}</span>
@@ -1037,7 +1037,7 @@
                 <InfoTip title="Selic — taxa básica de juros">
                   <p><strong className="text-[#D4A574]">O que é</strong>: taxa básica de juros do Brasil, definida pelo Copom (comitê do Banco Central) a cada 45 dias.</p>
                   <p><strong className="text-[#D4A574]">Por que importa</strong>: é a base do custo de crédito. Linhas de financiamento agrícola (Pronamp, custeio) são precificadas a partir dela. Selic alta = financiar a safra fica mais caro.</p>
-                  <p><strong className="text-[#D4A574]">Impacto prático</strong>: a 11,25% a.a., um Pronamp de R$ 5 mi custa ~R$ 425 mil em juros até a colheita. Se Selic sobe pra 13%, esse custo vai pra ~R$ 540 mil.</p>
+                  <p><strong className="text-[#D4A574]">Impacto prático</strong>: a 14,50% a.a., um Pronamp de R$ 5 mi custa ~R$ 547 mil em juros até a colheita. Se Selic sobe pra 16%, esse custo vai pra ~R$ 605 mil.</p>
                 </InfoTip>
               </span>
               <span className="text-[#E8E4D5]">{INITIAL_MARKET.selic.toFixed(2)}%</span>
@@ -1048,7 +1048,7 @@
                   <p><strong className="text-[#D4A574]">O que é</strong>: a diferença entre o futuro B3 (referência Paranaguá/Santos) e o preço físico na sua região.</p>
                   <p><strong className="text-[#D4A574]">Por que é negativo no MT</strong>: a soja produzida em Sorriso precisa percorrer 2.000+ km até o porto. Quem compra desconta o custo de frete + armazenagem + tempo. Por isso o basis fica negativo.</p>
                   <p><strong className="text-[#D4A574]">O que faz mexer</strong>: pico de safra (silo cheio, basis piora), frete (caminhão escasso, basis piora), demanda exportação (China comprando, basis melhora).</p>
-                  <p><strong className="text-[#D4A574]">O número</strong>: −R$ 16,50/saca = a soja em Sorriso vale R$ 16,50 a menos que a referência B3.</p>
+                  <p><strong className="text-[#D4A574]">O número</strong>: −R$ 29,82/saca = a soja em Sorriso vale R$ 29,82 a menos que a referência B3.</p>
                 </InfoTip>
               </span>
               <span className="text-[#E8E4D5]">{INITIAL_MARKET.basisMT.toFixed(2)}</span>
@@ -1059,7 +1059,7 @@
                   <p><strong className="text-[#D4A574]">O que é</strong>: Chicago Board of Trade — a bolsa de commodities de Chicago. É a principal referência mundial de preço da soja, milho, trigo. Todo mundo no mercado global olha pra ela.</p>
                   <p><strong className="text-[#D4A574]">Por que importa pro Brasil</strong>: quando o CBOT sobe, a soja brasileira segue (com defasagem de horas e ajustes de prêmio). É o "mercado lá fora" puxando o preço aqui.</p>
                   <p><strong className="text-[#D4A574]">Unidade diferente</strong>: lá é em USD por <em>bushel</em> (≈27,2 kg), aqui é R$ por saca (60 kg). Conversão aproximada: CBOT × 60 ÷ 27,2 × PTAX = preço de paridade da saca.</p>
-                  <p><strong className="text-[#D4A574]">Conta aqui</strong>: 10,65 × 60 ÷ 27,2 × 5,38 = ~R$ 126,30/saca de paridade (sem prêmio nem basis).</p>
+                  <p><strong className="text-[#D4A574]">Conta aqui</strong>: 11,99 × 60 ÷ 27,2 × 5,05 = ~R$ 133,58/saca de paridade (sem prêmio nem basis).</p>
                 </InfoTip>
               </span>
               <span className="text-[#E8E4D5]">{INITIAL_MARKET.cbot.toFixed(2)}</span>
@@ -1194,7 +1194,7 @@
                   </button>
                 )}
               </div>
-              <div className="text-[#7a7a68] text-xs uppercase tracking-widest">Soja · Mato Grosso · Safra 2025/26</div>
+              <div className="text-[#7a7a68] text-xs uppercase tracking-widest">Soja · Mato Grosso · Safra 2026/27</div>
             </div>
 
             {/* ====================== INTRO ====================== */}
