@@ -488,19 +488,30 @@
 
     function rolarEventosDaFase(fase, decisoes, ensoActual, rng = Math.random) {
       const regime = ENSO_REGIMES[ensoActual] || ENSO_REGIMES.neutro;
-      return EVENTOS
+      let eventos = EVENTOS
         .filter(e => e.fase === fase)
         .filter(e => {
           const baseProb = e.prob(decisoes);
           const mult = regime.multipliers[e.id] ?? 1.0; // só climáticos têm multiplier
           return rng() < baseProb * mult;
-        })
-        .filter((e, _, arr) => {
-          // Evita usda_baixa e usda_alta na mesma rodada
-          if (e.id === 'usda_baixa' && arr.some(x => x.id === 'usda_alta')) return rng() < 0.5;
-          if (e.id === 'dolar_sobe' && arr.some(x => x.id === 'dolar_cai')) return rng() < 0.5;
-          return true;
         });
+
+      // Resolve conflitos: pares mutuamente exclusivos — se ambos saíram, mantém só um (sorteado)
+      const paresExclusivos = [
+        ['usda_baixa', 'usda_alta'],         // safra americana ↑ ou ↓, não os dois
+        ['dolar_sobe', 'dolar_cai'],          // dólar sobe OU cai
+        ['chuva_excelente', 'seca_enchimento'] // chuva ótima OU déficit no enchimento
+      ];
+      for (const [a, b] of paresExclusivos) {
+        const hasA = eventos.some(e => e.id === a);
+        const hasB = eventos.some(e => e.id === b);
+        if (hasA && hasB) {
+          const keep = rng() < 0.5 ? a : b;
+          eventos = eventos.filter(e => (e.id !== a && e.id !== b) || e.id === keep);
+        }
+      }
+
+      return eventos;
     }
 
     // Helper: custos comprometidos até o momento atual (qualquer fase do jogo)
