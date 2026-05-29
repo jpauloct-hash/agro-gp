@@ -163,7 +163,8 @@
         descricaoCurta: 'Alto risco de veranico e calor no MT',
         impactoMT: 'No Centro-Oeste, El Niño forte traz chuva irregular, calor e veranicos. Foi o que aconteceu em 2023/24 — a pior safra de MT em 10 anos, quebra de ~21% (Aprosoja-MT). O risco se concentra no início do ciclo e na floração.',
         hedgeHint: 'Risco alto de quebra. Hedge mínimo (0-15%) — não se comprometa com entrega física que pode não acontecer.',
-        multipliers: { chuva_plantio: 0.55, veranico_floracao: 2.20, seca_enchimento: 2.50, chuva_excelente: 0.20, chuva_colheita: 0.40 }
+        multipliers: { chuva_plantio: 0.55, veranico_floracao: 2.20, seca_enchimento: 2.50, chuva_excelente: 0.20, chuva_colheita: 0.40 },
+        multipliersSafrinha: { fim_chuvas_precoce: 0.30, seca_abril: 0.50, chuva_outono_excelente: 1.40 }
       },
       ninho_fraco: {
         label: 'El Niño fraco',
@@ -171,7 +172,8 @@
         descricaoCurta: 'Chuva irregular, risco moderado de veranico',
         impactoMT: 'El Niño fraco no MT deixa as chuvas irregulares, com risco moderado-alto de veranico no início do ciclo e na floração. Pede cautela.',
         hedgeHint: 'Cautela. Hedge moderado-baixo (15-35%). Quebra parcial é cenário provável.',
-        multipliers: { chuva_plantio: 0.85, veranico_floracao: 1.50, seca_enchimento: 1.50, chuva_excelente: 0.55, chuva_colheita: 0.70 }
+        multipliers: { chuva_plantio: 0.85, veranico_floracao: 1.50, seca_enchimento: 1.50, chuva_excelente: 0.55, chuva_colheita: 0.70 },
+        multipliersSafrinha: { fim_chuvas_precoce: 0.65, seca_abril: 0.75, chuva_outono_excelente: 1.20 }
       },
       neutro: {
         label: 'ENSO Neutro',
@@ -179,7 +181,8 @@
         descricaoCurta: 'Padrão climático normal',
         impactoMT: 'Sem viés climático significativo. Probabilidades seguem a média histórica do MT. A distribuição das chuvas no período crítico (nov–fev) é o que decide a safra.',
         hedgeHint: 'Cenário base. Hedge entre 30-50% é o padrão da maioria dos produtores.',
-        multipliers: { chuva_plantio: 1.0, veranico_floracao: 1.0, seca_enchimento: 1.0, chuva_excelente: 1.0, chuva_colheita: 1.0 }
+        multipliers: { chuva_plantio: 1.0, veranico_floracao: 1.0, seca_enchimento: 1.0, chuva_excelente: 1.0, chuva_colheita: 1.0 },
+        multipliersSafrinha: { fim_chuvas_precoce: 1.0, seca_abril: 1.0, chuva_outono_excelente: 1.0 }
       },
       ninha_fraca: {
         label: 'La Niña fraca',
@@ -187,7 +190,8 @@
         descricaoCurta: 'Chuvas geralmente regulares no MT',
         impactoMT: 'Ao contrário do Sul do país (que sofre seca em La Niña), o Centro-Oeste costuma ter chuvas mais regulares. Cenário tipicamente favorável pra produtividade no MT.',
         hedgeHint: 'Cenário positivo pro MT. Hedge moderado-alto (50-65%) é razoável.',
-        multipliers: { chuva_plantio: 1.20, veranico_floracao: 0.40, seca_enchimento: 0.50, chuva_excelente: 1.30, chuva_colheita: 1.40 }
+        multipliers: { chuva_plantio: 1.20, veranico_floracao: 0.40, seca_enchimento: 0.50, chuva_excelente: 1.30, chuva_colheita: 1.40 },
+        multipliersSafrinha: { fim_chuvas_precoce: 1.45, seca_abril: 1.30, chuva_outono_excelente: 0.65 }
       },
       ninha_forte: {
         label: 'La Niña forte',
@@ -195,9 +199,208 @@
         descricaoCurta: 'Chuvas abundantes no MT (risco fica no Sul)',
         impactoMT: 'La Niña forte concentra chuva no Centro-Oeste. Pro MT é geralmente bom pra produtividade — o risco maior fica no Sul (RS/PR). Único cuidado: excesso de chuva pode atrapalhar a colheita e favorecer doenças.',
         hedgeHint: 'Forecast favorável: hedge agressivo (60-80%) faz sentido. Risco de quebra baixo no MT.',
-        multipliers: { chuva_plantio: 1.50, veranico_floracao: 0.15, seca_enchimento: 0.20, chuva_excelente: 1.60, chuva_colheita: 1.80 }
+        multipliers: { chuva_plantio: 1.50, veranico_floracao: 0.15, seca_enchimento: 0.20, chuva_excelente: 1.60, chuva_colheita: 1.80 },
+        multipliersSafrinha: { fim_chuvas_precoce: 1.85, seca_abril: 1.55, chuva_outono_excelente: 0.40 },
+        multipliersMilho: { fim_chuvas_precoce: 0.30, seca_abril: 0.25, chuva_outono_excelente: 1.80, geada_junho: 0.20 }
       }
     };
+
+    // Os mesmos regimes têm efeito DIFERENTE no segundo semestre (safrinha).
+    // Adicionamos multipliersMilho a cada um. La Niña que era favorável pra soja
+    // tende a encerrar chuvas mais cedo no outono — ruim pra milho safrinha.
+    // El Niño que era ruim pra soja se "normaliza" no outono — melhor pra milho.
+    ENSO_REGIMES.ninho_forte.multipliersMilho   = { fim_chuvas_precoce: 0.45, seca_abril: 0.40, chuva_outono_excelente: 1.40, geada_junho: 0.50 };
+    ENSO_REGIMES.ninho_fraco.multipliersMilho   = { fim_chuvas_precoce: 0.70, seca_abril: 0.70, chuva_outono_excelente: 1.20, geada_junho: 0.70 };
+    ENSO_REGIMES.neutro.multipliersMilho        = { fim_chuvas_precoce: 1.00, seca_abril: 1.00, chuva_outono_excelente: 1.00, geada_junho: 1.00 };
+    ENSO_REGIMES.ninha_fraca.multipliersMilho   = { fim_chuvas_precoce: 1.45, seca_abril: 1.50, chuva_outono_excelente: 0.65, geada_junho: 1.30 };
+    // ninha_forte fica com o multiplier já declarado acima
+
+    // =============================================================
+    // MILHO SAFRINHA — constantes (calibradas por IMEA/CPA-MT 2026/27)
+    // =============================================================
+    const INITIAL_MARKET_MILHO = {
+      futuroSetembro: 64.00,   // R$/sc 60kg — CCM set/27 na B3
+      basisMT: -16.00,         // basis MT pesado (longe do porto + concorrência interna)
+      spotMT: 48.00,           // ≈ futuro + basis
+      cbotMilho: 4.50,         // USD/bushel — CBOT milho dez/27
+      ptaxMilho: 5.05          // mesma PTAX herdada (será sobreposta pelo state da soja em runtime)
+    };
+
+    const PACOTES_MILHO = {
+      basico:  { prod: 75,  custoHa: 4500, label: 'Básico',  desc: 'Híbrido convencional, adubação mínima, sem tratamento de semente.' },
+      medio:   { prod: 95,  custoHa: 5500, label: 'Médio',   desc: 'Híbrido Bt, adubação balanceada, tratamento básico de semente.' },
+      premium: { prod: 115, custoHa: 6730, label: 'Premium', desc: 'Bt Pro + tratamento inseticida/sistêmico, adubação alta tecnologia.' }
+    };
+
+    const MANEJOS_MILHO = {
+      reativo:    { custoHa: 0,   eficacia: 0.35, label: 'Reativo',           desc: 'Trata só quando o problema aparece. Cigarrinha já vai ter feito estrago.' },
+      preventivo: { custoHa: 380, eficacia: 0.72, label: 'Preventivo padrão', desc: 'Programa fixo contra cigarrinha + lagarta. Eficiência razoável.' },
+      premium:    { custoHa: 720, eficacia: 0.90, label: 'Programa premium',  desc: 'Monitoramento intenso + inseticidas top + indução de resistência.' }
+    };
+
+    // Janelas derivadas do plantio da soja (e se houve replantio por chuva)
+    const JANELAS_MILHO = {
+      ideal:    { riscoFimChuvas: 0.18, modProd: 1.00, label: 'Janela ideal (15/jan–10/fev)',  desc: 'Pegou a janela cheia. Chuvas até abril provavelmente.' },
+      apertada: { riscoFimChuvas: 0.40, modProd: 0.92, label: 'Janela apertada (11/fev–28/fev)', desc: 'No limite. Risco moderado de pegar fim de chuvas.' },
+      tarde:    { riscoFimChuvas: 0.65, modProd: 0.78, label: 'Fora da janela (após 1/mar)',     desc: 'Plantio tardio. Risco alto de não conseguir enchimento.' }
+    };
+
+    function janelaMilhoFromSoja(decisoesSoja, eventLogSoja) {
+      const replantio = eventLogSoja.some(e => e.id === 'chuva_plantio');
+      const p = decisoesSoja.plantio;
+      if (replantio) {
+        if (p === 'cedo') return 'apertada';
+        return 'tarde';
+      }
+      if (p === 'cedo') return 'ideal';
+      if (p === 'medio') return 'apertada';
+      return 'tarde';
+    }
+
+    const FINANCIAMENTOS_MILHO = {
+      avista:  { custoFin: 0.00,  label: 'À vista',       desc: 'Usa caixa próprio. Sem juros.' },
+      pronamp: { custoFin: 0.075, label: 'Pronamp',       desc: 'Custo financeiro ~7,5% no ciclo da safrinha (5 meses).' },
+      barter:  { custoFin: 0.105, label: 'Barter (sacas)', desc: 'Paga em sacas no fim. ~10,5% efetivo, trava sacas a preço de hoje.' }
+    };
+
+    const EVENTOS_MILHO = [
+      // --- VEGETATIVO ---
+      {
+        id: 'cigarrinha_milho',
+        fase: 'vegetativo',
+        prob: () => 0.60,
+        titulo: 'Pressão alta de cigarrinha-do-milho',
+        icon: Bug,
+        tipo: 'fito',
+        desc: 'Inseto transmite enfezamento. Manejo fito é crítico agora.',
+        impactoTexto: (d) => `−${(20 * (1 - MANEJOS_MILHO[d.manejoMilho].eficacia)).toFixed(1)}% na produtividade (eficácia ${(MANEJOS_MILHO[d.manejoMilho].eficacia*100).toFixed(0)}%)`,
+        explicacao: 'A cigarrinha-do-milho (Dalbulus maidis) é hoje a principal praga do milho safrinha no MT. Transmite molicutes que causam enfezamento — planta não cresce, espiga falha. Manejo reativo perde ~13%, premium perde ~2%.',
+        aplicar: (s, d) => { s.modProd *= (1 - 0.20 * (1 - MANEJOS_MILHO[d.manejoMilho].eficacia)); }
+      },
+      {
+        id: 'lagarta_cartucho',
+        fase: 'vegetativo',
+        prob: () => 0.50,
+        titulo: 'Lagarta-do-cartucho atacando',
+        icon: Bug,
+        tipo: 'fito',
+        desc: 'Spodoptera ataca cartucho e folha-bandeira, reduz fotossíntese.',
+        impactoTexto: (d) => `−${(12 * (1 - MANEJOS_MILHO[d.manejoMilho].eficacia)).toFixed(1)}% na produtividade`,
+        explicacao: 'Lagarta-do-cartucho (Spodoptera frugiperda) é praga universal do milho. Híbridos Bt resistem melhor — pacote básico (sem Bt) sofre mais. Em safrinha sob stress hídrico, dano amplifica.',
+        aplicar: (s, d) => { s.modProd *= (1 - 0.12 * (1 - MANEJOS_MILHO[d.manejoMilho].eficacia)); }
+      },
+      // --- ENCHIMENTO ---
+      {
+        id: 'fim_chuvas_precoce',
+        fase: 'enchimento',
+        prob: (d) => JANELAS_MILHO[d.janelaMilho].riscoFimChuvas,
+        titulo: 'Fim de chuvas precoce em abril',
+        icon: Sun,
+        tipo: 'climatico',
+        desc: 'Chuvas encerram antes do esperado. Enchimento comprometido.',
+        impactoTexto: () => '−25% na produtividade',
+        explicacao: 'O risco-mor do milho safrinha no MT. Plantio fora da janela ideal aumenta drasticamente esse risco. Sem água na fase de enchimento, espigas ficam pequenas, grãos chochos. É por isso que safrinha tardia é tão arriscada.',
+        aplicar: (s) => { s.modProd *= 0.75; }
+      },
+      {
+        id: 'seca_abril',
+        fase: 'enchimento',
+        prob: () => 0.25,
+        titulo: 'Veranico em abril',
+        icon: Sun,
+        tipo: 'climatico',
+        desc: 'Estiagem de 10–15 dias compromete o enchimento de grãos.',
+        impactoTexto: () => '−12% na produtividade',
+        explicacao: 'Veranico no outono é diferente do da soja (verão). Não é tão devastador porque a planta já tá em fase final, mas tira peso do grão.',
+        aplicar: (s) => { s.modProd *= 0.88; }
+      },
+      {
+        id: 'chuva_outono_excelente',
+        fase: 'enchimento',
+        prob: () => 0.20,
+        titulo: 'Chuvas regulares até junho',
+        icon: Droplets,
+        tipo: 'positivo',
+        desc: 'Outono atipicamente úmido prolonga o enchimento. Peso de grão acima da média.',
+        impactoTexto: () => '+10% na produtividade',
+        explicacao: 'Quando o regime atrasa o fim das chuvas no MT (ex. La Niña fraca virando neutra), o milho safrinha aproveita pra fechar enchimento com folga.',
+        aplicar: (s) => { s.modProd *= 1.10; }
+      },
+      // --- COLHEITA ---
+      {
+        id: 'geada_junho',
+        fase: 'colheita',
+        prob: () => 0.08,
+        titulo: 'Geada em junho atinge Sul de MT',
+        icon: AlertTriangle,
+        tipo: 'climatico',
+        desc: 'Onda de frio incomum. Lavouras ainda em maturação perdem qualidade.',
+        impactoTexto: () => '−18% na produtividade · −5% no preço',
+        explicacao: 'Geada em junho no Sul de MT é raríssima mas catastrófica quando ocorre. Atinge mais quem plantou tarde e ainda tá em maturação. Conab registra eventos memoráveis em 2011 e 2021.',
+        aplicar: (s) => { s.modProd *= 0.82; s.modCbot *= 0.95; }
+      },
+      {
+        id: 'frete_milho',
+        fase: 'colheita',
+        prob: () => 0.40,
+        titulo: 'Frete sobe no pico da colheita do milho',
+        icon: Truck,
+        tipo: 'logistico',
+        desc: 'Milho competindo com soja-tardia pelo caminhão.',
+        impactoTexto: () => '−R$ 2,50 no basis MT',
+        explicacao: 'Junho/julho concentram colheita do milho safrinha no eixo BR-163 ao mesmo tempo. Demanda por frete dispara, basis fica ainda mais negativo.',
+        aplicar: (s) => { s.modBasis -= 2.50; }
+      },
+      // --- COMERCIALIZAÇÃO ---
+      {
+        id: 'etanol_demanda',
+        fase: 'comercializacao',
+        prob: () => 0.30,
+        titulo: 'Demanda de etanol de milho aquece',
+        icon: TrendingUp,
+        tipo: 'positivo',
+        desc: 'Usinas de etanol em MT pagam prêmio pra garantir matéria-prima.',
+        impactoTexto: () => '+6% no preço local',
+        explicacao: 'MT virou polo de etanol de milho — Sorriso, Lucas e Nova Mutum têm usinas grandes. Quando o etanol dispara, as usinas competem pelo grão e o spot regional sobe.',
+        aplicar: (s) => { s.modCbot *= 1.06; }
+      },
+      {
+        id: 'usda_milho_baixa',
+        fase: 'comercializacao',
+        prob: () => 0.30,
+        titulo: 'USDA revisa safra americana de milho pra cima',
+        icon: TrendingUp,
+        tipo: 'mercado',
+        desc: 'CBOT milho cai. Brasil acompanha.',
+        impactoTexto: () => '−5% no preço',
+        explicacao: 'O milho brasileiro segue Chicago com defasagem. USDA aumentando estimativa US derruba o preço mundial.',
+        aplicar: (s) => { s.modCbot *= 0.95; }
+      },
+      {
+        id: 'usda_milho_alta',
+        fase: 'comercializacao',
+        prob: () => 0.25,
+        titulo: 'Quebra de safra americana de milho',
+        icon: TrendingUp,
+        tipo: 'positivo',
+        desc: 'Seca no cinturão US ou problema climático global. CBOT dispara.',
+        impactoTexto: () => '+8% no preço',
+        explicacao: 'Cenário 2012-style: seca no Midwest americano puxa CBOT pra cima e Brasil aproveita o vácuo na exportação.',
+        aplicar: (s) => { s.modCbot *= 1.08; }
+      },
+      {
+        id: 'china_milho',
+        fase: 'comercializacao',
+        prob: () => 0.18,
+        titulo: 'China compra milho brasileiro pesado',
+        icon: TrendingUp,
+        tipo: 'positivo',
+        desc: 'Demanda chinesa por ração suína dispara importações.',
+        impactoTexto: () => '+5% no preço · +R$ 2,00 no basis MT',
+        explicacao: 'China abriu o milho brasileiro em 2022 e desde então é comprador relevante. Quando a demanda dispara, basis melhora também (porto puxa pra cima).',
+        aplicar: (s) => { s.modCbot *= 1.05; s.modBasis += 2.00; }
+      }
+    ];
 
     // Sorteia regime + forecast com nível de confiança realista
     function sortearENSO() {
@@ -486,32 +689,37 @@
     // SIMULAÇÃO
     // ============================================================
 
-    function rolarEventosDaFase(fase, decisoes, ensoActual, rng = Math.random) {
+    function rolarEventosDaFase(fase, decisoes, ensoActual, commodity = 'soja', rng = Math.random) {
       const regime = ENSO_REGIMES[ensoActual] || ENSO_REGIMES.neutro;
-      let eventos = EVENTOS
+      const eventos = commodity === 'milho' ? EVENTOS_MILHO : EVENTOS;
+      const mults = commodity === 'milho' ? (regime.multipliersSafrinha || {}) : (regime.multipliers || {});
+
+      let result = eventos
         .filter(e => e.fase === fase)
         .filter(e => {
           const baseProb = e.prob(decisoes);
-          const mult = regime.multipliers[e.id] ?? 1.0; // só climáticos têm multiplier
+          const mult = mults[e.id] ?? 1.0;
           return rng() < baseProb * mult;
         });
 
-      // Resolve conflitos: pares mutuamente exclusivos — se ambos saíram, mantém só um (sorteado)
+      // Resolve conflitos mutuamente exclusivos
       const paresExclusivos = [
-        ['usda_baixa', 'usda_alta'],         // safra americana ↑ ou ↓, não os dois
-        ['dolar_sobe', 'dolar_cai'],          // dólar sobe OU cai
-        ['chuva_excelente', 'seca_enchimento'] // chuva ótima OU déficit no enchimento
+        ['usda_baixa', 'usda_alta'],
+        ['dolar_sobe', 'dolar_cai'],
+        ['chuva_excelente', 'seca_enchimento'],
+        ['usda_milho_baixa', 'usda_milho_alta'],
+        ['fim_chuvas_precoce', 'chuva_outono_excelente']
       ];
       for (const [a, b] of paresExclusivos) {
-        const hasA = eventos.some(e => e.id === a);
-        const hasB = eventos.some(e => e.id === b);
+        const hasA = result.some(e => e.id === a);
+        const hasB = result.some(e => e.id === b);
         if (hasA && hasB) {
           const keep = rng() < 0.5 ? a : b;
-          eventos = eventos.filter(e => (e.id !== a && e.id !== b) || e.id === keep);
+          result = result.filter(e => (e.id !== a && e.id !== b) || e.id === keep);
         }
       }
 
-      return eventos;
+      return result;
     }
 
     // Helper: custos comprometidos até o momento atual (qualquer fase do jogo)
@@ -620,6 +828,95 @@
     }
 
     // ============================================================
+    // MILHO SAFRINHA — cálculos paralelos (sem seguro, sem manejo separado)
+    // ============================================================
+    function calcularCustosAcumuladosMilho(decisoes, simStateMilho, caixaInicial, area) {
+      const custos = { insumos: 0, manejo: 0, extras: 0, financeiro: 0, total: 0 };
+
+      if (decisoes.pacoteMilho) custos.insumos = PACOTES_MILHO[decisoes.pacoteMilho].custoHa * area;
+      if (decisoes.manejoMilho) custos.manejo = MANEJOS_MILHO[decisoes.manejoMilho].custoHa * area;
+      custos.extras = (simStateMilho.custoExtra || 0) * area;
+      if (decisoes.financiamentoMilho && (custos.insumos + custos.manejo) > 0) {
+        custos.financeiro = FINANCIAMENTOS_MILHO[decisoes.financiamentoMilho].custoFin * (custos.insumos + custos.manejo);
+      }
+      custos.total = custos.insumos + custos.manejo + custos.extras + custos.financeiro;
+
+      // Caixa: extras saem sempre. Insumos+manejo só saem se for à vista.
+      let caixaPago = custos.extras;
+      if (decisoes.financiamentoMilho === 'avista') {
+        caixaPago += custos.insumos + custos.manejo;
+      }
+      const caixa = caixaInicial - caixaPago;
+      const dividaAcumulada = custos.total - caixaPago;
+
+      const prodReal = decisoes.pacoteMilho ? PACOTES_MILHO[decisoes.pacoteMilho].prod * simStateMilho.modProd : 0;
+      const sacasTotal = prodReal * area;
+      const custoPorSaca = sacasTotal > 0 ? custos.total / sacasTotal : 0;
+
+      return { ...custos, caixa, caixaPago, dividaAcumulada, prodReal, sacasTotal, custoPorSaca };
+    }
+
+    function calcularDREMilho(decisoes, simStateMilho, caixaInicial, area) {
+      const pacote = PACOTES_MILHO[decisoes.pacoteMilho];
+      const manejo = MANEJOS_MILHO[decisoes.manejoMilho];
+      const fin = FINANCIAMENTOS_MILHO[decisoes.financiamentoMilho];
+
+      // Produtividade — janela aplica modificador base + eventos
+      const prodPotencial = pacote.prod;
+      const modJanela = JANELAS_MILHO[decisoes.janelaMilho]?.modProd || 1.0;
+      const prodReal = Math.max(10, prodPotencial * modJanela * simStateMilho.modProd);
+      const sacasTotal = prodReal * area;
+
+      // Custos
+      const custoInsumos = pacote.custoHa * area;
+      const custoManejo = manejo.custoHa * area;
+      const custoExtra = simStateMilho.custoExtra * area;
+      const custoFinanceiro = fin.custoFin * (custoInsumos + custoManejo);
+
+      // Preços
+      const basisFinal = INITIAL_MARKET_MILHO.basisMT + simStateMilho.modBasis;
+      const futuroFinal = INITIAL_MARKET_MILHO.futuroSetembro * simStateMilho.modCbot;
+      const precoSpot = futuroFinal + basisFinal;
+      const precoTravado = INITIAL_MARKET_MILHO.futuroSetembro + INITIAL_MARKET_MILHO.basisMT;
+
+      // Hedge com entrega física (mesma mecânica da soja)
+      const sacasEsperadas = prodPotencial * modJanela * area; // baseado em condição normal pra janela escolhida
+      const sacasComprometidas = sacasEsperadas * decisoes.travadoMilho;
+      const receitaTravada = sacasComprometidas * precoTravado;
+      const sacasFaltantes = Math.max(0, sacasComprometidas - sacasTotal);
+      const custoBackup = sacasFaltantes * precoSpot;
+
+      // Sacas livres + estratégia de venda
+      const sacasLivres = Math.max(0, sacasTotal - sacasComprometidas);
+      let precoMedioLivre;
+      if (decisoes.vendaMilho === 'colheita') {
+        precoMedioLivre = precoSpot;
+      } else if (decisoes.vendaMilho === 'etanol') {
+        precoMedioLivre = precoSpot * 1.05;  // usina paga prêmio modesto
+      } else { // 'armazenar'
+        precoMedioLivre = precoSpot * 1.06 - 2.50;  // entressafra
+      }
+      const receitaLivre = sacasLivres * precoMedioLivre;
+
+      const receitaBruta = receitaTravada + receitaLivre;
+      const custoTotal = custoInsumos + custoManejo + custoExtra + custoFinanceiro + custoBackup;
+      const lucro = receitaBruta - custoTotal;
+      const lucroHa = lucro / area;
+      const caixaFinal = caixaInicial + lucro;
+      const sacasTravadas = Math.min(sacasTotal, sacasComprometidas);
+
+      return {
+        prodPotencial, prodReal, sacasTotal, sacasEsperadas,
+        sacasTravadas, sacasComprometidas, sacasFaltantes, sacasLivres,
+        precoTravado, precoMedioLivre,
+        receitaTravada, receitaLivre, receitaBruta,
+        custoBackup, custoInsumos, custoManejo, custoExtra, custoFinanceiro, custoTotal,
+        lucro, lucroHa, caixaFinal,
+        futuroFinal, precoSpot, basisFinal
+      };
+    }
+
+    // ============================================================
     // UI HELPERS
     // ============================================================
 
@@ -692,10 +989,190 @@
     }
 
     // ============================================================
-    // COMPONENTES
+    // COMPONENTES DA SAFRINHA DE MILHO
     // ============================================================
 
-    // Mapa de fase → mês/descrição (calendário do ciclo da soja MT)
+    function MarketBarMilho({ simStateMilho }) {
+      const modCbot = simStateMilho.modCbot ?? 1;
+      const modBasis = simStateMilho.modBasis ?? 0;
+
+      const futuroAtual = INITIAL_MARKET_MILHO.futuroSetembro * modCbot;
+      const basisAtual = INITIAL_MARKET_MILHO.basisMT + modBasis;
+      const spotAtual = futuroAtual + basisAtual;
+
+      const spotDeltaPct = ((spotAtual - INITIAL_MARKET_MILHO.spotMT) / INITIAL_MARKET_MILHO.spotMT) * 100;
+      const basisDelta = basisAtual - INITIAL_MARKET_MILHO.basisMT;
+      const futuroDeltaPct = ((futuroAtual - INITIAL_MARKET_MILHO.futuroSetembro) / INITIAL_MARKET_MILHO.futuroSetembro) * 100;
+
+      function arrow(num, treshold = 0.05) {
+        if (Math.abs(num) < treshold) return { sym: '→', color: '#7a7a68' };
+        if (num > 0) return { sym: '↑', color: '#8FB36B' };
+        return { sym: '↓', color: '#C97B3F' };
+      }
+      const spotA = arrow(spotDeltaPct, 0.1);
+      const basisA = arrow(basisDelta, 0.05);
+      const futA = arrow(futuroDeltaPct, 0.1);
+
+      return (
+        <div className="grid grid-cols-3 gap-2 text-[11px]">
+          <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2">
+            <div className="text-[#7a7a68] uppercase tracking-wider text-[9px] mb-0.5 flex items-center">
+              Spot milho
+              <InfoTip title="Spot milho — Mato Grosso">
+                <p>Preço físico do milho safrinha em Sorriso/MT. Formado como: spot = futuro CCM + basis.</p>
+                <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Inicial</span><span>{fmtBRL(INITIAL_MARKET_MILHO.spotMT, 2)}</span></div>
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Atual</span><span className="text-[#D4A574]">{fmtBRL(spotAtual, 2)}</span></div>
+                  <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Variação</span><span style={{ color: spotA.color }}>{spotDeltaPct > 0 ? '+' : ''}{spotDeltaPct.toFixed(1)}%</span></div>
+                </div>
+                <p className="text-[#b5b1a0] text-xs mt-3">Note que a saca de milho vale ~metade da soja. A margem da safrinha é mais apertada — etanol é diferencial.</p>
+              </InfoTip>
+            </div>
+            <div className="font-mono text-[#E8E4D5] text-sm">{spotAtual.toFixed(2)}</div>
+            <div className="font-mono text-[9px] mt-0.5" style={{ color: spotA.color }}>{spotA.sym} {spotDeltaPct > 0 ? '+' : ''}{spotDeltaPct.toFixed(1)}%</div>
+          </div>
+
+          <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2">
+            <div className="text-[#7a7a68] uppercase tracking-wider text-[9px] mb-0.5 flex items-center">
+              Basis milho
+              <InfoTip title="Basis milho — diferencial MT">
+                <p>Diferença entre o futuro CCM B3 e o spot em Sorriso. Negativo: o produtor MT recebe menos por causa do frete até o porto/usina.</p>
+                <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Inicial</span><span>{INITIAL_MARKET_MILHO.basisMT.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Atual</span><span className="text-[#D4A574]">{basisAtual.toFixed(2)}</span></div>
+                  <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Variação</span><span style={{ color: basisA.color }}>{basisDelta > 0 ? '+' : ''}{basisDelta.toFixed(2)}</span></div>
+                </div>
+                <p className="text-[#b5b1a0] text-xs mt-3">Demanda local (etanol) ajuda. Pico de colheita em jun/jul atrapalha (caminhão escasso).</p>
+              </InfoTip>
+            </div>
+            <div className="font-mono text-[#E8E4D5] text-sm">{basisAtual.toFixed(2)}</div>
+            <div className="font-mono text-[9px] mt-0.5" style={{ color: basisA.color }}>{basisA.sym} {basisDelta > 0 ? '+' : ''}{basisDelta.toFixed(2)}</div>
+          </div>
+
+          <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2">
+            <div className="text-[#7a7a68] uppercase tracking-wider text-[9px] mb-0.5 flex items-center">
+              CCM set/27
+              <InfoTip title="CCM — Futuro milho B3">
+                <p>CCM (Contrato de Milho) é o futuro de milho da B3, vencimento set/27. Referência do mercado interno do milho.</p>
+                <p>Em R$/saca de 60kg. Eventos USDA, China e etanol mexem aqui.</p>
+                <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Inicial</span><span>{INITIAL_MARKET_MILHO.futuroSetembro.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Atual</span><span className="text-[#D4A574]">{futuroAtual.toFixed(2)}</span></div>
+                  <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Variação</span><span style={{ color: futA.color }}>{futuroDeltaPct > 0 ? '+' : ''}{futuroDeltaPct.toFixed(1)}%</span></div>
+                </div>
+              </InfoTip>
+            </div>
+            <div className="font-mono text-[#E8E4D5] text-sm">{futuroAtual.toFixed(2)}</div>
+            <div className="font-mono text-[9px] mt-0.5" style={{ color: futA.color }}>{futA.sym} {futuroDeltaPct > 0 ? '+' : ''}{futuroDeltaPct.toFixed(1)}%</div>
+          </div>
+        </div>
+      );
+    }
+
+    function StatBarMilho({ decisoesMilho, simStateMilho, caixaInicial, area }) {
+      const c = calcularCustosAcumuladosMilho(decisoesMilho, simStateMilho, caixaInicial, area);
+      const prodEst = decisoesMilho.pacoteMilho ? Math.round(c.prodReal) : null;
+      const custoSc = c.custoPorSaca > 0 ? c.custoPorSaca : null;
+      const finLabel = decisoesMilho.financiamentoMilho ? FINANCIAMENTOS_MILHO[decisoesMilho.financiamentoMilho].label : '—';
+      const pacoteLabel = decisoesMilho.pacoteMilho ? PACOTES_MILHO[decisoesMilho.pacoteMilho].label : null;
+
+      return (
+        <div className="grid grid-cols-3 gap-2 text-[11px]">
+          <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2">
+            <div className="text-[#7a7a68] uppercase tracking-wider text-[9px] mb-0.5 flex items-center">
+              Caixa
+              <InfoTip title="Saldo de caixa — safrinha">
+                <p>Caixa atual da fazenda, herdado do fechamento da soja e ajustado pelos gastos da safrinha já pagos à vista.</p>
+                <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Pós-soja</span><span>{fmtBRL(caixaInicial)}</span></div>
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">(−) Saídas safrinha</span><span className="text-[#C97B3F]">({fmtBRL(c.caixaPago)})</span></div>
+                  <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Caixa</span><span className="text-[#D4A574]">{fmtBRL(c.caixa)}</span></div>
+                </div>
+                {c.dividaAcumulada > 0 && (
+                  <p className="mt-3 text-xs">⚠ Dívida da safrinha: <strong className="text-[#C97B3F]">{fmtBRL(c.dividaAcumulada)}</strong> ({finLabel}). Quita na colheita do milho.</p>
+                )}
+              </InfoTip>
+            </div>
+            <div className="font-mono text-[#E8E4D5]">{fmtBRL(c.caixa)}</div>
+          </div>
+
+          <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2">
+            <div className="text-[#7a7a68] uppercase tracking-wider text-[9px] mb-0.5 flex items-center">
+              Custo/sc
+              <InfoTip title="Custo/sc — milho">
+                <p>Custo unitário por saca de milho — comprometido ÷ produção estimada.</p>
+                {custoSc ? (
+                  <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                    <div className="flex justify-between"><span className="text-[#8a8a78]">Custo total</span><span>{fmtBRL(c.total)}</span></div>
+                    <div className="flex justify-between"><span className="text-[#8a8a78]">÷ Sacas estimadas</span><span>{fmtSacas(c.sacasTotal)}</span></div>
+                    <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Custo/sc</span><span className="text-[#D4A574]">{fmtBRL(c.custoPorSaca, 2)}</span></div>
+                  </div>
+                ) : (
+                  <p className="text-[#b5b1a0] text-xs">Disponível depois de escolher o pacote.</p>
+                )}
+                <p className="text-[#b5b1a0] text-xs mt-3">Spot milho MT em R$ {INITIAL_MARKET_MILHO.spotMT.toFixed(2)}/sc. Margem apertada — se custo passa do spot, etanol/armazenagem precisam compensar.</p>
+              </InfoTip>
+            </div>
+            <div className={`font-mono ${custoSc && custoSc > INITIAL_MARKET_MILHO.spotMT ? 'text-[#C44536]' : 'text-[#D4A574]'}`}>
+              {custoSc ? fmtBRL(custoSc, 2) : '—'}
+            </div>
+          </div>
+
+          <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-2">
+            <div className="text-[#7a7a68] uppercase tracking-wider text-[9px] mb-0.5 flex items-center">
+              Prod. est.
+              <InfoTip title="Produtividade estimada — milho">
+                <p>Sacas/ha esperadas, com janela aplicada e eventos já ocorridos.</p>
+                {pacoteLabel ? (
+                  <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                    <div className="flex justify-between"><span className="text-[#8a8a78]">Potencial ({pacoteLabel})</span><span>{PACOTES_MILHO[decisoesMilho.pacoteMilho].prod} sc/ha</span></div>
+                    <div className="flex justify-between"><span className="text-[#8a8a78]">× Janela</span><span>{((JANELAS_MILHO[decisoesMilho.janelaMilho]?.modProd || 1) * 100).toFixed(0)}%</span></div>
+                    <div className="flex justify-between"><span className="text-[#8a8a78]">× Eventos</span><span>{(simStateMilho.modProd * 100).toFixed(0)}%</span></div>
+                    <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Estimativa</span><span className="text-[#D4A574]">{Math.round(c.prodReal * (JANELAS_MILHO[decisoesMilho.janelaMilho]?.modProd || 1))} sc/ha</span></div>
+                  </div>
+                ) : (
+                  <p className="text-[#b5b1a0] text-xs">Disponível depois de escolher o pacote.</p>
+                )}
+              </InfoTip>
+            </div>
+            <div className="font-mono text-[#D4A574]">{prodEst !== null ? Math.round(prodEst * (JANELAS_MILHO[decisoesMilho.janelaMilho]?.modProd || 1)) + ' sc/ha' : '—'}</div>
+          </div>
+        </div>
+      );
+    }
+
+    function FaseHeaderMilho({ fase }) {
+      const fases = [
+        { id: 'transicao',    label: 'Decisão',     mes: 'Jan' },
+        { id: 'setup',        label: 'Setup',       mes: 'Jan' },
+        { id: 'vegetativo',   label: 'Vegetativo',  mes: 'Fev–Mar' },
+        { id: 'enchimento',   label: 'Enchimento',  mes: 'Abr–Mai' },
+        { id: 'colheita',     label: 'Colheita',    mes: 'Jun–Jul' },
+        { id: 'comerc',       label: 'Comercial.',  mes: 'Jul–Out' },
+        { id: 'dre',          label: 'Fechamento',  mes: '—' }
+      ];
+      const idx = fases.findIndex(f => f.id === fase);
+      return (
+        <div className="flex items-center gap-1 overflow-x-auto pb-2 -mx-1 px-1">
+          {fases.map((f, i) => (
+            <React.Fragment key={f.id}>
+              <div className={`flex-shrink-0 px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider ${
+                i === idx ? 'bg-[#D4A574] text-[#1a1a13]' :
+                i < idx ? 'bg-[#3a3a2e] text-[#8a8a78]' :
+                'text-[#5a5a4e]'
+              }`}>
+                {f.label}
+              </div>
+              {i < fases.length - 1 && <div className="text-[#3a3a2e] text-xs">·</div>}
+            </React.Fragment>
+          ))}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // COMPONENTES
+    // ============================================================
     const FASE_INFO = {
       'intro':                   { mes: 'Pré-safra',           descricao: 'Ponto de partida' },
       'setup-pacote':            { mes: 'Agosto 2026',         descricao: 'Definindo tecnologia' },
@@ -710,7 +1187,20 @@
       'colheita-eventos':        { mes: 'Fev – Abr 2027',      descricao: 'Colheita' },
       'setup-venda':             { mes: 'Março 2027',          descricao: 'Decisão de venda' },
       'comercializacao-eventos': { mes: 'Mar – Jul 2027',      descricao: 'Comercialização' },
-      'dre':                     { mes: 'Julho 2027',          descricao: 'Fim da safra' }
+      'dre':                     { mes: 'Julho 2027',          descricao: 'Fim da soja' },
+      // --- SAFRINHA DE MILHO ---
+      'transicao':                  { mes: 'Janeiro 2027',     descricao: 'Continuar a safra?' },
+      'milho-pacote':               { mes: 'Janeiro 2027',     descricao: 'Tecnologia do milho' },
+      'milho-fito':                 { mes: 'Janeiro 2027',     descricao: 'Programa de defesa' },
+      'milho-trava':                { mes: 'Janeiro 2027',     descricao: 'Hedge do milho' },
+      'milho-financiamento':        { mes: 'Janeiro 2027',     descricao: 'Pagamento da safrinha' },
+      'milho-vegetativo-eventos':   { mes: 'Fev – Mar 2027',   descricao: 'Vegetativo do milho' },
+      'milho-enchimento-eventos':   { mes: 'Abr – Mai 2027',   descricao: 'Enchimento — fim das chuvas' },
+      'milho-colheita-eventos':     { mes: 'Jun – Jul 2027',   descricao: 'Colheita do milho' },
+      'milho-venda':                { mes: 'Julho 2027',       descricao: 'Venda do milho' },
+      'milho-comercializacao-eventos': { mes: 'Jul – Out 2027', descricao: 'Comercialização milho' },
+      'dre-milho':                  { mes: 'Outubro 2027',     descricao: 'Fechamento do milho' },
+      'dre-consolidado':            { mes: 'Outubro 2027',     descricao: 'Safra consolidada' }
     };
 
     function MonthLine({ fase }) {
@@ -1108,51 +1598,106 @@
       const [eventLog, setEventLog] = useState([]);
       const [faseEventos, setFaseEventos] = useState([]);
 
+      // === SAFRINHA MILHO ===
+      const [resultadoSoja, setResultadoSoja] = useState(null);
+      const [decisoesMilho, setDecisoesMilho] = useState({
+        pacoteMilho: null,
+        manejoMilho: null,
+        financiamentoMilho: null,
+        travadoMilho: null,
+        vendaMilho: null,
+        janelaMilho: null
+      });
+      const [simStateMilho, setSimStateMilho] = useState({
+        modProd: 1.0,
+        modCbot: 1.0,
+        modBasis: 0,
+        custoExtra: 0
+      });
+      const [eventLogMilho, setEventLogMilho] = useState([]);
+
       const dre = useMemo(() => {
-        if (fase !== 'dre') return null;
+        if (fase !== 'dre' && fase !== 'transicao' && !fase.startsWith('milho-') && fase !== 'dre-milho' && fase !== 'dre-consolidado') return null;
         return calcularDRE(decisoes, simState);
       }, [fase, decisoes, simState]);
 
+      // Caixa após DRE da soja (entra na safrinha)
+      const caixaPosSoja = useMemo(() => {
+        if (!resultadoSoja) return decisoes.capital;
+        return decisoes.capital + resultadoSoja.lucro;
+      }, [resultadoSoja, decisoes.capital]);
+
+      const dreMilho = useMemo(() => {
+        if (fase !== 'dre-milho' && fase !== 'dre-consolidado') return null;
+        if (!decisoesMilho.pacoteMilho) return null;
+        return calcularDREMilho(decisoesMilho, simStateMilho, caixaPosSoja, decisoes.area);
+      }, [fase, decisoesMilho, simStateMilho, caixaPosSoja, decisoes.area]);
+
       function avancarFase(proxima) {
+        const isMilho = proxima.startsWith('milho-');
+        const stateRef = isMilho ? simStateMilho : simState;
+        const setStateRef = isMilho ? setSimStateMilho : setSimState;
+        const decisoesRef = isMilho ? decisoesMilho : decisoes;
+        const setEventLogRef = isMilho ? setEventLogMilho : setEventLog;
+
         // Aplica deriva de mercado (random walk + sazonalidade do basis)
-        let novoState = { ...simState };
-        if (proxima !== 'dre') {
+        let novoState = { ...stateRef };
+        if (proxima !== 'dre' && proxima !== 'dre-milho' && proxima !== 'dre-consolidado' && !isMilho) {
           novoState = aplicarDeriva(novoState, proxima);
+        } else if (isMilho && proxima.endsWith('-eventos')) {
+          // Drift simples pro milho (sem sazonalidade detalhada por ora)
+          const ptaxMove = (Math.random() - 0.5) * 0.04;
+          const cbotMove = (Math.random() - 0.5) * 0.045;
+          const basisMove = (Math.random() - 0.5) * 2.5;
+          novoState.modCbot = (novoState.modCbot || 1) * (1 + cbotMove);
+          novoState.modBasis = (novoState.modBasis || 0) + basisMove;
         }
 
-        // Atualiza forecast climático: confidence sobe, e há chance de revisão
-        const novoEnso = atualizarForecast(enso, proxima);
-        setEnso(novoEnso);
+        // Forecast só evolui no ciclo da soja (não na safrinha — já temos o regime real)
+        if (!isMilho) {
+          const novoEnso = atualizarForecast(enso, proxima);
+          setEnso(novoEnso);
+        }
 
         // Se for tela de eventos, rola eventos da fase base
         if (proxima.endsWith('-eventos')) {
-          const faseBase = proxima.replace('-eventos', '');
-          const novos = rolarEventosDaFase(faseBase, decisoes, enso.actual);
-          novos.forEach(e => e.aplicar(novoState, decisoes));
+          const faseBaseRaw = proxima.replace('-eventos', '');
+          const faseBase = isMilho ? faseBaseRaw.replace('milho-', '') : faseBaseRaw;
+          const commodity = isMilho ? 'milho' : 'soja';
+          const novos = rolarEventosDaFase(faseBase, decisoesRef, enso.actual, commodity);
+          novos.forEach(e => e.aplicar(novoState, decisoesRef));
 
-          // Se houve revisão de forecast nesta fase, insere como evento no topo
+          // Revisão de forecast só aparece em fases de soja (pré-colheita)
           const eventosFinais = [...novos];
-          if (novoEnso.revisedThisPhase && novoEnso.prevForecast) {
-            const prevLabel = ENSO_REGIMES[novoEnso.prevForecast].label;
-            const newLabel = ENSO_REGIMES[novoEnso.forecast].label;
-            eventosFinais.unshift({
-              id: 'forecast_revisado_' + Date.now(),
-              titulo: 'Forecast climático revisado',
-              desc: `Modelos meteorológicos atualizados. Agora indicam ${newLabel} (era ${prevLabel}). Confiança subiu pra ${novoEnso.confidence}%.`,
-              icon: Info,
-              tipo: 'mercado',
-              impactoTexto: () => `Confiança ${novoEnso.confidence}% · ${newLabel}`,
-              explicacao: 'Forecasts ENSO são atualizados mensalmente pelo CFS/NOAA, INMET e ECMWF. Conforme novos dados de temperatura do Pacífico chegam, os modelos refinam a previsão. Quanto mais próximo da floração, mais precisa fica a leitura do regime.'
-            });
+          if (!isMilho) {
+            const novoEnso = atualizarForecast(enso, proxima);
+            if (novoEnso.revisedThisPhase && novoEnso.prevForecast) {
+              const prevLabel = ENSO_REGIMES[novoEnso.prevForecast].label;
+              const newLabel = ENSO_REGIMES[novoEnso.forecast].label;
+              eventosFinais.unshift({
+                id: 'forecast_revisado_' + Date.now(),
+                titulo: 'Forecast climático revisado',
+                desc: `Modelos meteorológicos atualizados. Agora indicam ${newLabel} (era ${prevLabel}). Confiança subiu pra ${novoEnso.confidence}%.`,
+                icon: Info,
+                tipo: 'mercado',
+                impactoTexto: () => `Confiança ${novoEnso.confidence}% · ${newLabel}`,
+                explicacao: 'Forecasts ENSO são atualizados mensalmente pelo CFS/NOAA, INMET e ECMWF. Conforme novos dados de temperatura do Pacífico chegam, os modelos refinam a previsão. Quanto mais próximo da floração, mais precisa fica a leitura do regime.'
+              });
+            }
           }
 
-          setFaseEventos(eventosFinais);
-          setEventLog(prev => [...prev, ...eventosFinais.map(e => ({ ...e, fase: faseBase }))]);
+          if (isMilho) {
+            setFaseEventos(eventosFinais);
+            setEventLogRef(prev => [...prev, ...eventosFinais.map(e => ({ ...e, fase: faseBase }))]);
+          } else {
+            setFaseEventos(eventosFinais);
+            setEventLog(prev => [...prev, ...eventosFinais.map(e => ({ ...e, fase: faseBase }))]);
+          }
         } else {
           setFaseEventos([]);
         }
 
-        setSimState(novoState);
+        setStateRef(novoState);
         setFase(proxima);
       }
 
@@ -1163,6 +1708,11 @@
         setEnso({ actual: null, forecast: null, confidence: null });
         setEventLog([]);
         setFaseEventos([]);
+        // Milho
+        setResultadoSoja(null);
+        setDecisoesMilho({ pacoteMilho: null, manejoMilho: null, financiamentoMilho: null, travadoMilho: null, vendaMilho: null, janelaMilho: null });
+        setSimStateMilho({ modProd: 1.0, modCbot: 1.0, modBasis: 0, custoExtra: 0 });
+        setEventLogMilho([]);
       }
 
       return (
@@ -1566,7 +2116,357 @@
             )}
 
             {/* ====================== DRE FINAL ====================== */}
-            {fase === 'dre' && dre && <DREScreen dre={dre} decisoes={decisoes} eventLog={eventLog} onReset={resetar} simState={simState} enso={enso} />}
+            {fase === 'dre' && dre && <DREScreen dre={dre} decisoes={decisoes} eventLog={eventLog} onReset={resetar} onContinuarSafrinha={() => { setResultadoSoja(dre); setDecisoesMilho(d => ({ ...d, janelaMilho: janelaMilhoFromSoja(decisoes, eventLog) })); setFase('transicao'); }} simState={simState} enso={enso} />}
+
+            {/* ====================== TRANSIÇÃO: SAFRINHA OU POUSIO ====================== */}
+            {fase === 'transicao' && resultadoSoja && (
+              <div className="space-y-4">
+                <FaseHeaderMilho fase="transicao" />
+                <MonthLine fase={fase} />
+                <div className="bg-gradient-to-br from-[#1a1c12] to-[#15170e] border border-[#2a2c1f] rounded-lg p-5">
+                  <Sprout className="text-[#D4A574] mb-3" size={24} />
+                  <h2 className="font-display text-xl mb-2 leading-tight">A soja fechou. E agora?</h2>
+                  <p className="text-[#c8c4b5] text-sm leading-snug">
+                    Você tem a área liberada e até o fim de fevereiro pra decidir. Pousio descansa o solo; safrinha de milho gera receita extra, mas exige investimento e expõe a fazenda a mais riscos.
+                  </p>
+                </div>
+
+                {/* Caixa pós-soja */}
+                <div className="bg-[#0f110a] border border-[#2a2c1f] rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest">Estado da fazenda</div>
+                    <div className={`text-xs font-mono ${resultadoSoja.lucro >= 0 ? 'text-[#8FB36B]' : 'text-[#C44536]'}`}>
+                      {resultadoSoja.lucro >= 0 ? 'lucro' : 'prejuízo'} {fmtBRL(Math.abs(resultadoSoja.lucro))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm font-mono">
+                    <div>
+                      <div className="text-[#7a7a68] text-[10px] uppercase tracking-wider">Caixa pós-soja</div>
+                      <div className={`text-lg ${caixaPosSoja >= 0 ? 'text-[#D4A574]' : 'text-[#C44536]'}`}>{fmtBRL(caixaPosSoja)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[#7a7a68] text-[10px] uppercase tracking-wider">Área disponível</div>
+                      <div className="text-lg text-[#D4A574]">{decisoes.area} ha</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Janela calculada */}
+                <div className="bg-[#15170e] border border-[#2a2c1f] rounded-lg p-4">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1 flex items-center">
+                    Janela disponível pra milho safrinha
+                    <InfoTip title="Como a janela é definida">
+                      <p>A janela do milho safrinha depende de quando você plantou a soja e se houve replantio.</p>
+                      <p><strong className="text-[#D4A574]">Plantou cedo + sem chuva forte</strong>: janela ideal (15/jan–10/fev). Chuvas até abril provavelmente.</p>
+                      <p><strong className="text-[#D4A574]">Plantou no meio ou cedo com replantio</strong>: janela apertada (11–28/fev). Risco moderado de pegar fim de chuvas em abril.</p>
+                      <p><strong className="text-[#D4A574]">Plantou tarde ou tarde com replantio</strong>: fora da janela ideal. Plantio em março, risco alto de não enchimento.</p>
+                    </InfoTip>
+                  </div>
+                  <div className="text-[#E8E4D5] font-medium mb-1">{JANELAS_MILHO[decisoesMilho.janelaMilho]?.label || '—'}</div>
+                  <div className="text-[#8a8a78] text-xs leading-snug">{JANELAS_MILHO[decisoesMilho.janelaMilho]?.desc || ''}</div>
+                  <div className="mt-2 pt-2 border-t border-[#2a2c1f] flex items-center justify-between text-xs font-mono">
+                    <span className="text-[#7a7a68]">Mod. produtividade base</span>
+                    <span className="text-[#D4A574]">{((JANELAS_MILHO[decisoesMilho.janelaMilho]?.modProd || 1) * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs font-mono mt-1">
+                    <span className="text-[#7a7a68]">Risco fim de chuvas precoce</span>
+                    <span className="text-[#C97B3F]">{((JANELAS_MILHO[decisoesMilho.janelaMilho]?.riscoFimChuvas || 0) * 100).toFixed(0)}%</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <Card onClick={() => setFase('milho-pacote')}>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <div className="font-medium text-[#E8E4D5]">Plantar milho safrinha</div>
+                      <div className="font-mono text-xs text-[#D4A574]">~R$ 4,5–6,7 mi · 4 decisões</div>
+                    </div>
+                    <div className="text-xs text-[#8a8a78] leading-snug">Receita extra, mas exposição a fim de chuvas, cigarrinha, lagarta. Margem mais apertada que a soja.</div>
+                  </Card>
+                  <Card onClick={() => { setDecisoesMilho(d => ({ ...d, pacoteMilho: null })); setFase('dre-consolidado'); }}>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <div className="font-medium text-[#E8E4D5]">Pousio (encerrar safra)</div>
+                      <div className="font-mono text-xs text-[#7a7a68]">sem receita extra</div>
+                    </div>
+                    <div className="text-xs text-[#8a8a78] leading-snug">Descanso de solo. Sem riscos novos. Receita final = só da soja.</div>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {/* ====================== MILHO — PACOTE TECNOLÓGICO ====================== */}
+            {fase === 'milho-pacote' && (
+              <div className="space-y-4">
+                <FaseHeaderMilho fase="setup" />
+                <MonthLine fase={fase} />
+                <StatBarMilho decisoesMilho={decisoesMilho} simStateMilho={simStateMilho} caixaInicial={caixaPosSoja} area={decisoes.area} />
+                <MarketBarMilho simStateMilho={simStateMilho} />
+                <div className="mt-4">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 1 de 4 · safrinha</div>
+                  <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
+                    Pacote do milho
+                    <InfoTip title="Pacote do milho safrinha">
+                      <p>A escolha do híbrido + adubação determina o teto produtivo.</p>
+                      <p><strong className="text-[#D4A574]">Básico</strong>: híbrido convencional. Mais barato, mas sem tecnologia Bt — sofre mais com lagarta-do-cartucho.</p>
+                      <p><strong className="text-[#D4A574]">Médio</strong>: híbrido Bt (resistente a lagarta), adubação balanceada.</p>
+                      <p><strong className="text-[#D4A574]">Premium</strong>: Bt Pro + tratamento de semente sistêmico + adubação alta tecnologia. IMEA aponta R$ 6.730/ha como custo médio em MT.</p>
+                      <p className="text-[#b5b1a0] text-xs mt-3">Importante: a janela manda mais que o pacote. Plantar premium em janela tarde dá menos sacas que básico em janela ideal.</p>
+                    </InfoTip>
+                  </h2>
+                  <p className="text-[#8a8a78] text-sm leading-snug">Janela {JANELAS_MILHO[decisoesMilho.janelaMilho]?.label.split('(')[0].trim()}. Genética + adubação definem o teto.</p>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(PACOTES_MILHO).map(([k, p]) => (
+                    <Card key={k} selected={decisoesMilho.pacoteMilho === k} onClick={() => setDecisoesMilho(d => ({ ...d, pacoteMilho: k }))}>
+                      <div className="flex justify-between items-baseline mb-1">
+                        <div className="font-medium text-[#E8E4D5]">{p.label}</div>
+                        <div className="font-mono text-xs text-[#D4A574]">{p.prod} sc/ha · {fmtBRL(p.custoHa)}/ha</div>
+                      </div>
+                      <div className="text-xs text-[#8a8a78] leading-snug">{p.desc}</div>
+                    </Card>
+                  ))}
+                </div>
+                <button
+                  disabled={!decisoesMilho.pacoteMilho}
+                  onClick={() => setFase('milho-fito')}
+                  className="w-full bg-[#D4A574] disabled:bg-[#2a2c1f] disabled:text-[#5a5a4e] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2"
+                >
+                  próximo <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== MILHO — MANEJO FITO ====================== */}
+            {fase === 'milho-fito' && (
+              <div className="space-y-4">
+                <FaseHeaderMilho fase="setup" />
+                <MonthLine fase={fase} />
+                <StatBarMilho decisoesMilho={decisoesMilho} simStateMilho={simStateMilho} caixaInicial={caixaPosSoja} area={decisoes.area} />
+                <MarketBarMilho simStateMilho={simStateMilho} />
+                <div className="mt-4">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 2 de 4 · safrinha</div>
+                  <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
+                    Programa fitossanitário
+                    <InfoTip title="Programa fito — milho safrinha">
+                      <p>O milho safrinha tem 2 pragas principais no MT:</p>
+                      <p><strong className="text-[#D4A574]">Cigarrinha-do-milho</strong> (Dalbulus maidis): transmite enfezamento. Hoje é o #1 problema. Sem manejo preventivo, perdas de 15–25%.</p>
+                      <p><strong className="text-[#D4A574]">Lagarta-do-cartucho</strong> (Spodoptera frugiperda): ataca a folha. Bt resiste melhor, pacote básico sofre.</p>
+                      <p>Eficácia do manejo: reativo 35% → preventivo 72% → premium 90%. Cada % de eficácia a mais reduz a perda na proporção do dano potencial.</p>
+                    </InfoTip>
+                  </h2>
+                  <p className="text-[#8a8a78] text-sm leading-snug">Cigarrinha e lagarta são os principais. Manejo aplica direto na perda esperada.</p>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(MANEJOS_MILHO).map(([k, m]) => (
+                    <Card key={k} selected={decisoesMilho.manejoMilho === k} onClick={() => setDecisoesMilho(d => ({ ...d, manejoMilho: k }))}>
+                      <div className="flex justify-between items-baseline mb-1">
+                        <div className="font-medium text-[#E8E4D5]">{m.label}</div>
+                        <div className="font-mono text-xs text-[#D4A574]">+{fmtBRL(m.custoHa)}/ha · efic. {fmtPct(m.eficacia)}</div>
+                      </div>
+                      <div className="text-xs text-[#8a8a78] leading-snug">{m.desc}</div>
+                    </Card>
+                  ))}
+                </div>
+                <button
+                  disabled={!decisoesMilho.manejoMilho}
+                  onClick={() => setFase('milho-trava')}
+                  className="w-full bg-[#D4A574] disabled:bg-[#2a2c1f] disabled:text-[#5a5a4e] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2"
+                >
+                  próximo <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== MILHO — TRAVAMENTO ====================== */}
+            {fase === 'milho-trava' && (
+              <div className="space-y-4">
+                <FaseHeaderMilho fase="setup" />
+                <MonthLine fase={fase} />
+                <StatBarMilho decisoesMilho={decisoesMilho} simStateMilho={simStateMilho} caixaInicial={caixaPosSoja} area={decisoes.area} />
+                <MarketBarMilho simStateMilho={simStateMilho} />
+                <div className="mt-4">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 3 de 4 · safrinha</div>
+                  <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
+                    Travamento antecipado
+                    <InfoTip title="Travar milho antecipado">
+                      <p>Mesma lógica da soja: você compromete sacas hoje a preço fixo via futuro CCM/contrato a termo.</p>
+                      <p>Preço travado: R$ {(INITIAL_MARKET_MILHO.futuroSetembro + INITIAL_MARKET_MILHO.basisMT).toFixed(2)}/sc (futuro CCM set/27 + basis MT).</p>
+                      <p><strong className="text-[#D4A574]">Risco principal do milho</strong>: quebra por fim de chuvas precoce em abril/maio. Se travar mais do que produzir, vai precisar comprar grão pra entregar (backup contratual).</p>
+                      <p className="text-[#b5b1a0] text-xs mt-3">Em janela tarde ou La Niña: prudente travar menos (0–30%). Em janela ideal + ENSO neutro/El Niño: pode subir até 50–70%.</p>
+                    </InfoTip>
+                  </h2>
+                  <p className="text-[#8a8a78] text-sm leading-snug">Quanto da safrinha você fixa preço agora?</p>
+                </div>
+                <div className="space-y-2">
+                  {[0, 0.30, 0.50, 0.70].map(pct => (
+                    <Card key={pct} selected={decisoesMilho.travadoMilho === pct} onClick={() => setDecisoesMilho(d => ({ ...d, travadoMilho: pct }))}>
+                      <div className="flex justify-between items-baseline mb-1">
+                        <div className="font-medium text-[#E8E4D5]">{(pct * 100).toFixed(0)}% travado</div>
+                        <div className="font-mono text-xs text-[#D4A574]">
+                          {pct === 0 ? 'risco max' : pct < 0.5 ? 'mod. conserv.' : 'alta proteção'}
+                        </div>
+                      </div>
+                      <div className="text-xs text-[#8a8a78] leading-snug">
+                        {pct === 0 ? 'Vende tudo a preço de mercado na colheita.' :
+                         `${(pct * 100).toFixed(0)}% das sacas esperadas comprometidas a R$ ${(INITIAL_MARKET_MILHO.futuroSetembro + INITIAL_MARKET_MILHO.basisMT).toFixed(2)}.`}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+                <button
+                  disabled={decisoesMilho.travadoMilho === null}
+                  onClick={() => setFase('milho-financiamento')}
+                  className="w-full bg-[#D4A574] disabled:bg-[#2a2c1f] disabled:text-[#5a5a4e] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2"
+                >
+                  próximo <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== MILHO — FINANCIAMENTO ====================== */}
+            {fase === 'milho-financiamento' && decisoesMilho.pacoteMilho && (
+              <div className="space-y-4">
+                <FaseHeaderMilho fase="setup" />
+                <MonthLine fase={fase} />
+                <StatBarMilho decisoesMilho={decisoesMilho} simStateMilho={simStateMilho} caixaInicial={caixaPosSoja} area={decisoes.area} />
+                <MarketBarMilho simStateMilho={simStateMilho} />
+                <div className="mt-4">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 4 de 4 · safrinha</div>
+                  <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
+                    Financiamento da safrinha
+                    <InfoTip title="Financiamento da safrinha">
+                      <p>Mesma lógica da soja, mas com janela mais curta (5 meses) e taxas levemente menores.</p>
+                      <p><strong className="text-[#D4A574]">À vista</strong>: só disponível se o caixa pós-soja cobrir os custos. Sem juros.</p>
+                      <p><strong className="text-[#D4A574]">Pronamp</strong>: linha de crédito rural. ~7,5% sobre os custos no ciclo da safrinha.</p>
+                      <p><strong className="text-[#D4A574]">Barter</strong>: paga com sacas de milho na colheita. ~10,5% efetivo, trava preço da saca.</p>
+                    </InfoTip>
+                  </h2>
+                  <p className="text-[#8a8a78] text-sm leading-snug">
+                    Custo estimado: <span className="text-[#D4A574] font-mono">{fmtBRL((PACOTES_MILHO[decisoesMilho.pacoteMilho].custoHa + (decisoesMilho.manejoMilho ? MANEJOS_MILHO[decisoesMilho.manejoMilho].custoHa : 0)) * decisoes.area)}</span>. {caixaPosSoja < (PACOTES_MILHO[decisoesMilho.pacoteMilho].custoHa * decisoes.area) ? '⚠ caixa insuficiente pra pagar tudo à vista' : 'caixa cobre a operação.'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(FINANCIAMENTOS_MILHO).map(([k, f]) => {
+                    const custoTotal = (PACOTES_MILHO[decisoesMilho.pacoteMilho].custoHa + (decisoesMilho.manejoMilho ? MANEJOS_MILHO[decisoesMilho.manejoMilho].custoHa : 0)) * decisoes.area;
+                    const desabilitado = k === 'avista' && caixaPosSoja < custoTotal;
+                    return (
+                      <Card key={k} selected={decisoesMilho.financiamentoMilho === k} onClick={() => !desabilitado && setDecisoesMilho(d => ({ ...d, financiamentoMilho: k }))}>
+                        <div className="flex justify-between items-baseline mb-1">
+                          <div className={`font-medium ${desabilitado ? 'text-[#5a5a4e]' : 'text-[#E8E4D5]'}`}>{f.label}{desabilitado && ' (caixa insuficiente)'}</div>
+                          <div className="font-mono text-xs text-[#D4A574]">{fmtPct(f.custoFin)}</div>
+                        </div>
+                        <div className="text-xs text-[#8a8a78] leading-snug">{f.desc}</div>
+                      </Card>
+                    );
+                  })}
+                </div>
+                <button
+                  disabled={!decisoesMilho.financiamentoMilho}
+                  onClick={() => avancarFase('milho-vegetativo-eventos')}
+                  className="w-full bg-[#D4A574] disabled:bg-[#2a2c1f] disabled:text-[#5a5a4e] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2"
+                >
+                  plantar milho <Sprout size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== EVENTOS DO MILHO ====================== */}
+            {['milho-vegetativo-eventos', 'milho-enchimento-eventos', 'milho-colheita-eventos', 'milho-comercializacao-eventos'].includes(fase) && (
+              <FaseEventosScreenMilho
+                fase={fase}
+                decisoesMilho={decisoesMilho}
+                simStateMilho={simStateMilho}
+                eventos={faseEventos}
+                caixaInicial={caixaPosSoja}
+                area={decisoes.area}
+                onContinuar={() => {
+                  const mapa = {
+                    'milho-vegetativo-eventos': 'milho-enchimento-eventos',
+                    'milho-enchimento-eventos': 'milho-colheita-eventos',
+                    'milho-colheita-eventos': 'milho-venda',
+                    'milho-comercializacao-eventos': 'dre-milho'
+                  };
+                  avancarFase(mapa[fase]);
+                }}
+                labelBotao={fase === 'milho-comercializacao-eventos' ? 'fechar DRE milho' : 'continuar'}
+              />
+            )}
+
+            {/* ====================== MILHO — ESTRATÉGIA DE VENDA ====================== */}
+            {fase === 'milho-venda' && (
+              <div className="space-y-4">
+                <FaseHeaderMilho fase="comerc" />
+                <MonthLine fase={fase} />
+                <StatBarMilho decisoesMilho={decisoesMilho} simStateMilho={simStateMilho} caixaInicial={caixaPosSoja} area={decisoes.area} />
+                <MarketBarMilho simStateMilho={simStateMilho} />
+                <div className="mt-2">
+                  <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão extra · venda do milho</div>
+                  <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
+                    Estratégia de venda do milho
+                    <InfoTip title="Como vender o milho">
+                      <p>O milho tem rotas de venda diferentes da soja:</p>
+                      <p><strong className="text-[#D4A574]">Vender na colheita</strong>: rápido, mas pega o pior preço (todo mundo colhendo ao mesmo tempo).</p>
+                      <p><strong className="text-[#D4A574]">Direto pra etanol</strong>: usina paga prêmio modesto (+5%), elimina frete longo. MT virou polo de etanol de milho.</p>
+                      <p><strong className="text-[#D4A574]">Armazenar p/ entressafra</strong>: aposta no carrego — preço sobe set/out conforme estoque escasseia. Custa armazenagem.</p>
+                    </InfoTip>
+                  </h2>
+                  <p className="text-[#8a8a78] text-sm leading-snug">Colheita concluída. Como vai escoar?</p>
+                </div>
+                <div className="space-y-2">
+                  <Card selected={decisoesMilho.vendaMilho === 'colheita'} onClick={() => setDecisoesMilho(d => ({ ...d, vendaMilho: 'colheita' }))}>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <div className="font-medium text-[#E8E4D5]">Vender na colheita</div>
+                      <div className="font-mono text-xs text-[#D4A574]">preço spot</div>
+                    </div>
+                    <div className="text-xs text-[#8a8a78] leading-snug">Sem armazenagem. Pior preço sazonal — pico de oferta em jun/jul.</div>
+                  </Card>
+                  <Card selected={decisoesMilho.vendaMilho === 'etanol'} onClick={() => setDecisoesMilho(d => ({ ...d, vendaMilho: 'etanol' }))}>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <div className="font-medium text-[#E8E4D5]">Direto pra usina de etanol</div>
+                      <div className="font-mono text-xs text-[#D4A574]">+5% sobre spot</div>
+                    </div>
+                    <div className="text-xs text-[#8a8a78] leading-snug">Usina local paga prêmio modesto. Logística simplificada.</div>
+                  </Card>
+                  <Card selected={decisoesMilho.vendaMilho === 'armazenar'} onClick={() => setDecisoesMilho(d => ({ ...d, vendaMilho: 'armazenar' }))}>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <div className="font-medium text-[#E8E4D5]">Armazenar para entressafra</div>
+                      <div className="font-mono text-xs text-[#D4A574]">+6% / −R$ 2,50 arm.</div>
+                    </div>
+                    <div className="text-xs text-[#8a8a78] leading-snug">Carrego pra set/out. Custo de armazenagem.</div>
+                  </Card>
+                </div>
+                <button
+                  disabled={!decisoesMilho.vendaMilho}
+                  onClick={() => avancarFase('milho-comercializacao-eventos')}
+                  className="w-full bg-[#D4A574] disabled:bg-[#2a2c1f] disabled:text-[#5a5a4e] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2"
+                >
+                  comercializar <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* ====================== DRE MILHO ====================== */}
+            {fase === 'dre-milho' && dreMilho && (
+              <DREMilhoScreen
+                dreMilho={dreMilho}
+                decisoesMilho={decisoesMilho}
+                decisoesSoja={decisoes}
+                eventLogMilho={eventLogMilho}
+                simStateMilho={simStateMilho}
+                caixaInicial={caixaPosSoja}
+                onContinuar={() => setFase('dre-consolidado')}
+              />
+            )}
+
+            {/* ====================== DRE CONSOLIDADO ====================== */}
+            {fase === 'dre-consolidado' && resultadoSoja && (
+              <DREConsolidadoScreen
+                resultadoSoja={resultadoSoja}
+                dreMilho={dreMilho}
+                decisoesSoja={decisoes}
+                decisoesMilho={decisoesMilho}
+                onReset={resetar}
+              />
+            )}
           </div>
         </div>
       );
@@ -1620,7 +2520,7 @@
     // ============================================================
     // TELA DE DRE FINAL
     // ============================================================
-    function DREScreen({ dre, decisoes, eventLog, onReset, simState, enso }) {
+    function DREScreen({ dre, decisoes, eventLog, onReset, onContinuarSafrinha, simState, enso }) {
       const positivo = dre.lucro > 0;
 
       return (
@@ -1845,9 +2745,14 @@
             )}
           </div>
 
-          <button onClick={onReset} className="w-full bg-[#D4A574] hover:bg-[#E8B547] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
-            <RotateCcw size={16} /> jogar outra safra
-          </button>
+          <div className="space-y-2 pt-2">
+            <button onClick={onContinuarSafrinha} className="w-full bg-[#D4A574] hover:bg-[#E8B547] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+              Continuar pra safrinha <ArrowRight size={16} />
+            </button>
+            <button onClick={onReset} className="w-full bg-transparent border border-[#3a3a2e] hover:bg-[#15170e] text-[#8a8a78] font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm">
+              <RotateCcw size={14} /> jogar outra safra
+            </button>
+          </div>
         </div>
       );
     }
@@ -1862,6 +2767,255 @@
           <div className={`font-mono text-sm ${total ? 'text-[#D4A574] font-medium' : negativo ? 'text-[#C97B3F]' : positivo ? 'text-[#8FB36B]' : 'text-[#E8E4D5]'}`}>
             {value}
           </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // FASE DE EVENTOS — MILHO
+    // ============================================================
+    function FaseEventosScreenMilho({ fase, decisoesMilho, simStateMilho, eventos, caixaInicial, area, onContinuar, labelBotao }) {
+      const titulos = {
+        'milho-vegetativo-eventos':       { titulo: 'Vegetativo do milho',     mes: 'Fev–Mar 2027',  fase: 'vegetativo' },
+        'milho-enchimento-eventos':       { titulo: 'Enchimento de grão',       mes: 'Abr–Mai 2027',  fase: 'enchimento' },
+        'milho-colheita-eventos':         { titulo: 'Colheita do milho',        mes: 'Jun–Jul 2027',  fase: 'colheita' },
+        'milho-comercializacao-eventos':  { titulo: 'Comercialização do milho', mes: 'Jul–Out 2027',  fase: 'comerc' }
+      };
+      const meta = titulos[fase];
+      return (
+        <div className="space-y-4">
+          <FaseHeaderMilho fase={meta.fase} />
+          <MonthLine fase={fase} />
+          <StatBarMilho decisoesMilho={decisoesMilho} simStateMilho={simStateMilho} caixaInicial={caixaInicial} area={area} />
+          <MarketBarMilho simStateMilho={simStateMilho} />
+          <div className="mt-2">
+            <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">{meta.mes}</div>
+            <h2 className="font-display text-xl text-[#E8E4D5]">{meta.titulo}</h2>
+          </div>
+
+          {eventos.length === 0 && (
+            <div className="bg-[#15170e] border border-[#2a2c1f] rounded p-4 text-center">
+              <CheckCircle2 className="text-[#8FB36B] mx-auto mb-2" size={20} />
+              <div className="text-[#c8c4b5] text-sm">Sem ocorrências relevantes nesta fase.</div>
+            </div>
+          )}
+
+          {eventos.length > 0 && (
+            <div>
+              <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-2">Ocorrências</div>
+              {eventos.map(e => <EventoCard key={e.id} evento={e} decisoes={decisoesMilho} />)}
+            </div>
+          )}
+
+          <button onClick={onContinuar} className="w-full bg-[#D4A574] hover:bg-[#E8B547] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+            {labelBotao || 'continuar'} <ArrowRight size={16} />
+          </button>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // DRE MILHO
+    // ============================================================
+    function DREMilhoScreen({ dreMilho, decisoesMilho, decisoesSoja, eventLogMilho, simStateMilho, caixaInicial, onContinuar }) {
+      const pacote = PACOTES_MILHO[decisoesMilho.pacoteMilho];
+      const manejo = MANEJOS_MILHO[decisoesMilho.manejoMilho];
+      const fin = FINANCIAMENTOS_MILHO[decisoesMilho.financiamentoMilho];
+
+      return (
+        <div className="space-y-5">
+          <FaseHeaderMilho fase="dre" />
+          <MonthLine fase="dre-milho" />
+
+          {/* Resultado */}
+          <div className="bg-gradient-to-br from-[#1a1c12] to-[#15170e] border border-[#2a2c1f] rounded-lg p-5">
+            <Wheat className="text-[#D4A574] mb-2" size={22} />
+            <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">DRE safrinha — milho</div>
+            <div className="flex items-baseline justify-between">
+              <div>
+                <div className="text-[#7a7a68] text-xs mb-0.5">Lucro do milho</div>
+                <div className={`font-display text-3xl ${dreMilho.lucro >= 0 ? 'text-[#8FB36B]' : 'text-[#C44536]'}`} style={{ fontStyle: 'italic' }}>{fmtBRL(dreMilho.lucro)}</div>
+              </div>
+              <div className={`text-xs font-mono ${dreMilho.lucro >= 0 ? 'text-[#8FB36B]' : 'text-[#C44536]'}`}>
+                {fmtBRL(dreMilho.lucroHa)}/ha
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs font-mono mt-3">
+              <div className="bg-[#0f110a]/60 rounded p-2">
+                <div className="text-[#7a7a68] text-[9px] uppercase tracking-wider">Produtividade</div>
+                <div className="text-[#E8E4D5] text-sm">{dreMilho.prodReal.toFixed(1)} sc/ha</div>
+              </div>
+              <div className="bg-[#0f110a]/60 rounded p-2">
+                <div className="text-[#7a7a68] text-[9px] uppercase tracking-wider">Caixa final</div>
+                <div className="text-[#E8E4D5] text-sm">{fmtBRL(dreMilho.caixaFinal)}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Receita */}
+          <div>
+            <h3 className="font-display text-lg mb-2 text-[#D4A574]">Receita</h3>
+            <div className="bg-[#15170e] border border-[#2a2c1f] rounded">
+              <RowDRE label="Sacas produzidas" sub={`${dreMilho.prodReal.toFixed(1)} sc/ha × ${decisoesSoja.area} ha`} value={fmtSacas(dreMilho.sacasTotal)} mono />
+              <RowDRE
+                label={`Travado antecipado (${(decisoesMilho.travadoMilho*100).toFixed(0)}%)`}
+                sub={`${fmtSacas(dreMilho.sacasComprometidas)} × ${fmtBRL(dreMilho.precoTravado, 2)}`}
+                value={fmtBRL(dreMilho.receitaTravada)}
+              />
+              <RowDRE label="Físico livre vendido" sub={`${fmtSacas(dreMilho.sacasLivres)} × ${fmtBRL(dreMilho.precoMedioLivre, 2)}`} value={fmtBRL(dreMilho.receitaLivre)} />
+              <RowDRE label="Receita bruta" value={fmtBRL(dreMilho.receitaBruta)} total />
+            </div>
+          </div>
+
+          {/* Custos */}
+          <div>
+            <h3 className="font-display text-lg mb-2 text-[#D4A574]">Custos</h3>
+            <div className="bg-[#15170e] border border-[#2a2c1f] rounded">
+              <RowDRE label={`Insumos (${pacote.label})`} sub={`${fmtBRL(pacote.custoHa)}/ha × ${decisoesSoja.area} ha`} value={`(${fmtBRL(dreMilho.custoInsumos)})`} negativo />
+              <RowDRE label={`Manejo fito (${manejo.label})`} sub={`${fmtBRL(manejo.custoHa)}/ha × ${decisoesSoja.area} ha`} value={`(${fmtBRL(dreMilho.custoManejo)})`} negativo />
+              {dreMilho.custoExtra > 0 && <RowDRE label="Custos extras (eventos)" value={`(${fmtBRL(dreMilho.custoExtra)})`} negativo />}
+              <RowDRE label={`Custo financeiro (${fin.label})`} sub={`${(fin.custoFin*100).toFixed(1)}% sobre insumos+manejo`} value={`(${fmtBRL(dreMilho.custoFinanceiro)})`} negativo />
+              {dreMilho.custoBackup > 0 && (
+                <RowDRE
+                  label={<span className="text-[#C44536]">⚠ Backup contratual</span>}
+                  sub={`${fmtSacas(dreMilho.sacasFaltantes)} compradas no spot`}
+                  value={`(${fmtBRL(dreMilho.custoBackup)})`}
+                  negativo
+                />
+              )}
+              <RowDRE label="Custo total" value={`(${fmtBRL(dreMilho.custoTotal)})`} total />
+            </div>
+          </div>
+
+          {/* Nota: sem seguro */}
+          <div className="bg-[#0f110a] border border-[#2a2c1f] rounded p-3 text-xs text-[#8a8a78] flex items-start gap-2">
+            <Info size={12} className="text-[#7a7a68] mt-0.5 flex-shrink-0" />
+            <p className="leading-snug">A safrinha não tem seguro nessa simulação — produtor MT raramente segura milho safrinha pelo custo do prêmio em relação à margem.</p>
+          </div>
+
+          {/* Histórico de eventos */}
+          <div>
+            <h3 className="font-display text-lg mb-2 text-[#D4A574]">A safrinha em eventos</h3>
+            {eventLogMilho.length === 0 ? (
+              <div className="text-[#7a7a68] text-sm">Safrinha sem grandes ocorrências.</div>
+            ) : (
+              <div className="space-y-1">
+                {eventLogMilho.map((e, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs py-1.5 border-b border-[#2a2c1f]/50 last:border-0">
+                    <e.icon size={12} className="mt-0.5 flex-shrink-0" style={{ color: TIPO_COR[e.tipo] }} />
+                    <div className="flex-1 text-[#c8c4b5]">{e.titulo}</div>
+                    <div className="text-[#5a5a4e] font-mono text-[10px] uppercase">{e.fase}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button onClick={onContinuar} className="w-full bg-[#D4A574] hover:bg-[#E8B547] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+            ver safra consolidada <ArrowRight size={16} />
+          </button>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // DRE CONSOLIDADO (SOJA + MILHO)
+    // ============================================================
+    function DREConsolidadoScreen({ resultadoSoja, dreMilho, decisoesSoja, decisoesMilho, onReset }) {
+      const fezSafrinha = !!dreMilho;
+      const lucroSoja = resultadoSoja.lucro;
+      const lucroMilho = fezSafrinha ? dreMilho.lucro : 0;
+      const lucroConsolidado = lucroSoja + lucroMilho;
+      const receitaConsolidada = resultadoSoja.receitaBruta + (fezSafrinha ? dreMilho.receitaBruta : 0);
+      const custoConsolidado = resultadoSoja.custoTotal + (fezSafrinha ? dreMilho.custoTotal : 0);
+      const roe = lucroConsolidado / decisoesSoja.capital;
+      const caixaFinal = decisoesSoja.capital + lucroConsolidado;
+
+      return (
+        <div className="space-y-5">
+          <div className="flex items-center gap-1 overflow-x-auto pb-2 -mx-1 px-1">
+            <div className="bg-[#D4A574] text-[#1a1a13] flex-shrink-0 px-3 py-1 rounded text-[10px] font-mono uppercase tracking-wider">
+              Safra completa · soja {fezSafrinha ? '+ milho' : '+ pousio'}
+            </div>
+          </div>
+          <MonthLine fase="dre-consolidado" />
+
+          {/* Resultado consolidado */}
+          <div className="bg-gradient-to-br from-[#1a1c12] to-[#15170e] border border-[#D4A574]/30 rounded-lg p-5">
+            <Sprout className="text-[#D4A574] mb-2" size={22} />
+            <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Resultado da safra 2026/27</div>
+            <div className="flex items-baseline justify-between">
+              <div>
+                <div className="text-[#7a7a68] text-xs mb-0.5">Lucro consolidado</div>
+                <div className={`font-display text-3xl ${lucroConsolidado >= 0 ? 'text-[#8FB36B]' : 'text-[#C44536]'}`} style={{ fontStyle: 'italic' }}>{fmtBRL(lucroConsolidado)}</div>
+              </div>
+              <div className={`text-xs font-mono ${lucroConsolidado >= 0 ? 'text-[#8FB36B]' : 'text-[#C44536]'}`}>
+                ROE {fmtPct(roe)}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs font-mono mt-3">
+              <div className="bg-[#0f110a]/60 rounded p-2">
+                <div className="text-[#7a7a68] text-[9px] uppercase tracking-wider">Receita total</div>
+                <div className="text-[#E8E4D5] text-sm">{fmtBRL(receitaConsolidada)}</div>
+              </div>
+              <div className="bg-[#0f110a]/60 rounded p-2">
+                <div className="text-[#7a7a68] text-[9px] uppercase tracking-wider">Caixa final</div>
+                <div className="text-[#E8E4D5] text-sm">{fmtBRL(caixaFinal)}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Decomposição */}
+          <div>
+            <h3 className="font-display text-lg mb-2 text-[#D4A574]">Decomposição</h3>
+            <div className="bg-[#15170e] border border-[#2a2c1f] rounded">
+              <RowDRE label="Capital inicial" value={fmtBRL(decisoesSoja.capital)} />
+              <RowDRE label="Lucro da soja" sub={`${resultadoSoja.prodReal.toFixed(1)} sc/ha`} value={fmtBRL(lucroSoja)} positivo={lucroSoja >= 0} negativo={lucroSoja < 0} />
+              {fezSafrinha ? (
+                <RowDRE label="Lucro da safrinha (milho)" sub={`${dreMilho.prodReal.toFixed(1)} sc/ha`} value={fmtBRL(lucroMilho)} positivo={lucroMilho >= 0} negativo={lucroMilho < 0} />
+              ) : (
+                <RowDRE label="Safrinha (pousio)" sub="sem receita adicional" value={fmtBRL(0)} />
+              )}
+              <RowDRE label="Lucro consolidado" value={fmtBRL(lucroConsolidado)} total />
+              <RowDRE label="Caixa final" sub={`capital + lucro`} value={fmtBRL(caixaFinal)} />
+            </div>
+          </div>
+
+          {/* Análise contrafactual: e se tivesse feito pousio? */}
+          {fezSafrinha && (
+            <div className="bg-[#0f110a] border border-[#2a2c1f] rounded-lg p-4">
+              <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-2 flex items-center">
+                E se tivesse feito pousio?
+                <InfoTip title="Comparação contrafactual">
+                  <p>Esse painel compara o resultado real da sua safrinha com o cenário em que você teria decidido por pousio (sem plantar nada após a soja).</p>
+                  <p>Se a safrinha deu prejuízo, o pousio teria sido melhor. Se deu lucro, foi a decisão certa.</p>
+                </InfoTip>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-[#c8c4b5]">Cenário escolhido (com safrinha)</span>
+                  <span className={`font-mono ${lucroConsolidado >= 0 ? 'text-[#8FB36B]' : 'text-[#C44536]'}`}>{fmtBRL(lucroConsolidado)}</span>
+                </div>
+                <div className="flex justify-between items-baseline">
+                  <span className="text-[#c8c4b5]">Cenário alternativo (pousio)</span>
+                  <span className={`font-mono ${lucroSoja >= 0 ? 'text-[#8FB36B]' : 'text-[#C44536]'}`}>{fmtBRL(lucroSoja)}</span>
+                </div>
+                <div className="pt-2 border-t border-[#2a2c1f] flex justify-between items-baseline">
+                  <span className="text-[#D4A574]">Diferença</span>
+                  <span className={`font-mono ${lucroMilho >= 0 ? 'text-[#8FB36B]' : 'text-[#C44536]'}`}>{lucroMilho >= 0 ? '+' : ''}{fmtBRL(lucroMilho)}</span>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-[#2a2c1f] text-xs text-[#8a8a78] leading-snug">
+                {lucroMilho > 0 ? '✓ A safrinha agregou valor. Decisão acertada.' :
+                 lucroMilho < 0 ? '⚠ A safrinha deu prejuízo. Pousio teria sido melhor.' :
+                 '→ A safrinha empatou. Trabalho extra sem retorno.'}
+              </div>
+            </div>
+          )}
+
+          <button onClick={onReset} className="w-full bg-[#D4A574] hover:bg-[#E8B547] text-[#1a1a13] font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+            <RotateCcw size={16} /> jogar outra safra
+          </button>
         </div>
       );
     }
