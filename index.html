@@ -113,6 +113,23 @@
       cbot: 11.99            // USD/bushel
     };
 
+    // --- Selic anual pra remuneração do caixa positivo ---
+    const SELIC_AA = 0.145;
+
+    // --- Duração estimada de cada fase de eventos em meses (pra calcular rendimento Selic) ---
+    const MESES_POR_FASE = {
+      'plantio-eventos':              1.5,
+      'vegetativo-eventos':           2.5,
+      'enchimento-eventos':           1.5,
+      'colheita-eventos':             2.0,
+      'comercializacao-eventos':      3.5,
+      // Safrinha
+      'milho-vegetativo-eventos':     1.5,
+      'milho-enchimento-eventos':     2.0,
+      'milho-colheita-eventos':       2.0,
+      'milho-comercializacao-eventos': 3.5
+    };
+
     // --- Pacotes tecnológicos ---
     const PACOTES = {
       basico:  { prod: 52, custoHa: 4400, label: 'Básico',  desc: 'Genética padrão, adubação mínima, defensivos genéricos.' },
@@ -809,7 +826,11 @@
 
       const receitaBruta = receitaTravada + receitaLivre + indenizacao;
       const custoTotal = custoInsumos + custoManejo + custoSeguro + custoExtra + custoFinanceiro + custoBackup;
-      const lucro = receitaBruta - custoTotal;
+
+      // Rendimento Selic acumulado fase a fase sobre caixa positivo (vem do simState)
+      const rendimentoCaixa = simState.receitaFinanceira || 0;
+
+      const lucro = receitaBruta - custoTotal + rendimentoCaixa;
       const lucroHa = lucro / area;
       const roe = lucro / decisoes.capital;
 
@@ -822,6 +843,7 @@
         precoTravado, precoMedioLivre,
         receitaTravada, receitaLivre, indenizacao, receitaBruta,
         custoBackup, custoInsumos, custoManejo, custoSeguro, custoExtra, custoFinanceiro, custoTotal,
+        rendimentoCaixa,
         lucro, lucroHa, roe,
         futuroFinal, precoSpot, basisFinal, prodFrustrada
       };
@@ -900,7 +922,11 @@
 
       const receitaBruta = receitaTravada + receitaLivre;
       const custoTotal = custoInsumos + custoManejo + custoExtra + custoFinanceiro + custoBackup;
-      const lucro = receitaBruta - custoTotal;
+
+      // Rendimento Selic acumulado fase a fase sobre caixa positivo
+      const rendimentoCaixa = simStateMilho.receitaFinanceira || 0;
+
+      const lucro = receitaBruta - custoTotal + rendimentoCaixa;
       const lucroHa = lucro / area;
       const caixaFinal = caixaInicial + lucro;
       const sacasTravadas = Math.min(sacasTotal, sacasComprometidas);
@@ -911,6 +937,7 @@
         precoTravado, precoMedioLivre,
         receitaTravada, receitaLivre, receitaBruta,
         custoBackup, custoInsumos, custoManejo, custoExtra, custoFinanceiro, custoTotal,
+        rendimentoCaixa,
         lucro, lucroHa, caixaFinal,
         futuroFinal, precoSpot, basisFinal
       };
@@ -1136,6 +1163,111 @@
               </InfoTip>
             </div>
             <div className="font-mono text-[#D4A574]">{prodEst !== null ? Math.round(prodEst * (JANELAS_MILHO[decisoesMilho.janelaMilho]?.modProd || 1)) + ' sc/ha' : '—'}</div>
+          </div>
+        </div>
+      );
+    }
+
+    function CalendarioSazonal({ fase, commodity = 'soja' }) {
+      const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+      // Estações da soja MT (cores harmonizadas com tema do app)
+      const ESTACOES_SOJA = [
+        { id: 'colheita',    label: 'Colheita / safra MT',   cor: '#8FB36B', meses: [0, 1, 2, 3] },   // Jan-Abr
+        { id: 'entressafra', label: 'Entressafra (preço firme)', cor: '#C97B3F', meses: [4, 5, 6, 7] }, // Mai-Ago
+        { id: 'plantio',     label: 'Plantio (custo, expectativa)', cor: '#5B8FA8', meses: [8, 9, 10, 11] } // Set-Dez
+      ];
+
+      // Estações do milho safrinha
+      const ESTACOES_MILHO = [
+        { id: 'plantio_milho',    label: 'Plantio safrinha (custo)', cor: '#5B8FA8', meses: [0, 1] },       // Jan-Fev
+        { id: 'enchimento_milho', label: 'Enchimento (clima decide)', cor: '#8FB36B', meses: [2, 3, 4] },   // Mar-Mai
+        { id: 'colheita_milho',   label: 'Colheita (basis pesa)', cor: '#B8945E', meses: [5, 6] },          // Jun-Jul
+        { id: 'entressafra_milho', label: 'Entressafra (preço firme)', cor: '#C97B3F', meses: [7, 8, 9, 10, 11] } // Ago-Dez
+      ];
+
+      const estacoes = commodity === 'milho' ? ESTACOES_MILHO : ESTACOES_SOJA;
+
+      // Mapa fase → mês do ano (0=Jan ... 11=Dez) — sincronizado com FASE_INFO
+      const MES_POR_FASE = {
+        'intro': 7,              // Pré-safra (Ago)
+        'setup-pacote': 7,       // Agosto 2026
+        'setup-fin': 7,          // Agosto 2026
+        'setup-seg': 7,          // Agosto 2026
+        'setup-trava': 7,        // Agosto 2026
+        'setup-plantio': 8,      // Setembro 2026
+        'plantio-eventos': 9,    // Out–Nov 2026 (Out)
+        'setup-manejo': 11,      // Dezembro 2026
+        'vegetativo-eventos': 0, // Dez 26 – Jan 27 (Jan)
+        'enchimento-eventos': 1, // Jan – Fev 2027 (Fev)
+        'colheita-eventos': 2,   // Fev – Abr 2027 (Mar)
+        'setup-venda': 2,        // Março 2027
+        'comercializacao-eventos': 4, // Mar – Jul 2027 (Mai)
+        'dre': 6,                // Julho 2027
+        // Milho safrinha
+        'transicao': 0,                          // Janeiro 2027
+        'milho-pacote': 0, 'milho-fito': 0, 'milho-trava': 0, 'milho-financiamento': 0,
+        'milho-vegetativo-eventos': 1,           // Fev – Mar 2027 (Fev)
+        'milho-enchimento-eventos': 3,           // Abr – Mai 2027 (Abr)
+        'milho-colheita-eventos': 5,             // Jun – Jul 2027 (Jun)
+        'milho-venda': 6,                        // Julho 2027
+        'milho-comercializacao-eventos': 8,      // Jul – Out 2027 (Set)
+        'dre-milho': 9,                          // Outubro 2027
+        'dre-consolidado': 9
+      };
+
+      const mesAtual = MES_POR_FASE[fase] ?? 7;
+      function corDoMes(idx) {
+        const e = estacoes.find(es => es.meses.includes(idx));
+        return e ? e.cor : '#3a3a2e';
+      }
+
+      return (
+        <div className="bg-[#0f110a] border border-[#2a2c1f] rounded-lg p-3">
+          <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-2 flex items-center">
+            Calendário · {commodity === 'milho' ? 'sazonalidade milho MT' : 'sazonalidade soja MT'}
+            <InfoTip title={commodity === 'milho' ? 'Sazonalidade do milho safrinha MT' : 'Sazonalidade da soja MT'}>
+              {commodity === 'soja' ? (
+                <>
+                  <p>O preço da soja no MT segue um padrão sazonal claro ao longo do ano:</p>
+                  <p><strong style={{ color: '#5B8FA8' }}>Set–Dez (plantio)</strong>: sem oferta nova ainda. Estoques caem, basis melhora, preço firme. É a janela tradicional de travamento antecipado pra próxima safra.</p>
+                  <p><strong style={{ color: '#8FB36B' }}>Jan–Abr (colheita MT)</strong>: oferta máxima. Caminhões saindo da lavoura, silo cheio, frete dispara. Basis afunda (−R$ 25 a −R$ 35), preço local pressionado. Vender físico aqui é pegar pior preço.</p>
+                  <p><strong style={{ color: '#C97B3F' }}>Mai–Ago (entressafra)</strong>: oferta diminui, EUA ainda plantando, basis recupera. Preço firme. Janela tradicional pra quem armazenou e segurou.</p>
+                  <p className="text-[#b5b1a0] text-xs mt-3">Esse padrão repete todo ano com variações de ±15% conforme USDA, China e quebra de safra americana.</p>
+                </>
+              ) : (
+                <>
+                  <p>O milho safrinha tem ciclo curto e padrão sazonal próprio:</p>
+                  <p><strong style={{ color: '#5B8FA8' }}>Jan–Fev (plantio)</strong>: janela apertada. Custo concentrado.</p>
+                  <p><strong style={{ color: '#8FB36B' }}>Mar–Mai (enchimento)</strong>: chuvas decidem. Risco principal do milho MT — fim de chuvas precoce devasta o enchimento.</p>
+                  <p><strong style={{ color: '#B8945E' }}>Jun–Jul (colheita)</strong>: oferta máxima. Basis afunda muito (frete escasso). Preço local despenca temporariamente.</p>
+                  <p><strong style={{ color: '#C97B3F' }}>Ago–Dez (entressafra)</strong>: estoques caem, demanda etanol firma. Preço se recupera. Janela do armazenamento.</p>
+                </>
+              )}
+            </InfoTip>
+          </div>
+          {/* Barra de cores */}
+          <div className="flex gap-1 mb-2">
+            {MESES.map((m, i) => (
+              <div key={i} className="flex-1 h-1 rounded-full" style={{ backgroundColor: corDoMes(i), opacity: i === mesAtual ? 1 : 0.55 }} />
+            ))}
+          </div>
+          {/* Meses */}
+          <div className="flex gap-1 mb-3">
+            {MESES.map((m, i) => (
+              <div key={i} className={`flex-1 text-center text-[10px] font-mono ${i === mesAtual ? 'text-[#1a1a13] bg-[#D4A574] rounded px-1 py-0.5' : 'text-[#7a7a68]'}`}>
+                {m}
+              </div>
+            ))}
+          </div>
+          {/* Legenda */}
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-[#8a8a78]">
+            {estacoes.map(e => (
+              <div key={e.id} className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: e.cor }} />
+                <span>{e.label}</span>
+              </div>
+            ))}
           </div>
         </div>
       );
@@ -1593,7 +1725,8 @@
         modCbot: 1.0,
         modPtax: 1.0,
         modBasis: 0,
-        custoExtra: 0
+        custoExtra: 0,
+        receitaFinanceira: 0
       });
       const [eventLog, setEventLog] = useState([]);
       const [faseEventos, setFaseEventos] = useState([]);
@@ -1612,7 +1745,8 @@
         modProd: 1.0,
         modCbot: 1.0,
         modBasis: 0,
-        custoExtra: 0
+        custoExtra: 0,
+        receitaFinanceira: 0
       });
       const [eventLogMilho, setEventLogMilho] = useState([]);
 
@@ -1697,6 +1831,20 @@
           setFaseEventos([]);
         }
 
+        // Rendimento Selic sobre caixa positivo durante a fase
+        if (proxima.endsWith('-eventos') && MESES_POR_FASE[proxima]) {
+          const meses = MESES_POR_FASE[proxima];
+          const taxaFase = Math.pow(1 + SELIC_AA, meses / 12) - 1;
+          const custos = isMilho
+            ? calcularCustosAcumuladosMilho(decisoesRef, novoState, caixaPosSoja, decisoes.area)
+            : calcularCustosAcumulados(decisoesRef, novoState);
+          const caixaAtual = custos.caixa;
+          if (caixaAtual > 0) {
+            const rendimento = caixaAtual * taxaFase;
+            novoState.receitaFinanceira = (novoState.receitaFinanceira || 0) + rendimento;
+          }
+        }
+
         setStateRef(novoState);
         setFase(proxima);
       }
@@ -1704,14 +1852,14 @@
       function resetar() {
         setFase('intro');
         setDecisoes({ area: 1000, capital: 6500000, pacote: null, financiamento: null, seguro: null, travado: null, plantio: null, manejo: null, venda: null });
-        setSimState({ modProd: 1.0, modCbot: 1.0, modPtax: 1.0, modBasis: 0, custoExtra: 0 });
+        setSimState({ modProd: 1.0, modCbot: 1.0, modPtax: 1.0, modBasis: 0, custoExtra: 0, receitaFinanceira: 0 });
         setEnso({ actual: null, forecast: null, confidence: null });
         setEventLog([]);
         setFaseEventos([]);
         // Milho
         setResultadoSoja(null);
         setDecisoesMilho({ pacoteMilho: null, manejoMilho: null, financiamentoMilho: null, travadoMilho: null, vendaMilho: null, janelaMilho: null });
-        setSimStateMilho({ modProd: 1.0, modCbot: 1.0, modBasis: 0, custoExtra: 0 });
+        setSimStateMilho({ modProd: 1.0, modCbot: 1.0, modBasis: 0, custoExtra: 0, receitaFinanceira: 0 });
         setEventLogMilho([]);
       }
 
@@ -1792,6 +1940,8 @@
               <div className="space-y-4">
                 <FaseHeader fase="setup" />
                 <MonthLine fase={fase} />
+
+                <CalendarioSazonal fase={fase} />
                 <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
@@ -1835,6 +1985,8 @@
               <div className="space-y-4">
                 <FaseHeader fase="setup" />
                 <MonthLine fase={fase} />
+
+                <CalendarioSazonal fase={fase} />
                 <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
@@ -1873,6 +2025,8 @@
               <div className="space-y-4">
                 <FaseHeader fase="setup" />
                 <MonthLine fase={fase} />
+
+                <CalendarioSazonal fase={fase} />
                 <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
@@ -1911,9 +2065,11 @@
               <div className="space-y-4">
                 <FaseHeader fase="setup" />
                 <MonthLine fase={fase} />
+
                 <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
+                <CalendarioSazonal fase={fase} commodity="soja" />
                 <div className="mt-4">
                   <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 4 de 7</div>
                   <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
@@ -1952,6 +2108,8 @@
               <div className="space-y-4">
                 <FaseHeader fase="plantio" />
                 <MonthLine fase={fase} />
+
+                <CalendarioSazonal fase={fase} />
                 <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
@@ -2020,6 +2178,8 @@
               <div className="space-y-4">
                 <FaseHeader fase="vegetativo" />
                 <MonthLine fase={fase} />
+
+                <CalendarioSazonal fase={fase} />
                 <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
@@ -2063,9 +2223,11 @@
               <div className="space-y-4">
                 <FaseHeader fase="comercializacao" />
                 <MonthLine fase={fase} />
+
                 <ForecastChip enso={enso} />
                 <StatBar decisoes={decisoes} simState={simState} />
                 <MarketBar simState={simState} />
+                <CalendarioSazonal fase={fase} commodity="soja" />
                 <div className="mt-2">
                   <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 7 de 7</div>
                   <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
@@ -2123,6 +2285,8 @@
               <div className="space-y-4">
                 <FaseHeaderMilho fase="transicao" />
                 <MonthLine fase={fase} />
+
+                <CalendarioSazonal fase={fase} />
                 <div className="bg-gradient-to-br from-[#1a1c12] to-[#15170e] border border-[#2a2c1f] rounded-lg p-5">
                   <Sprout className="text-[#D4A574] mb-3" size={24} />
                   <h2 className="font-display text-xl mb-2 leading-tight">A soja fechou. E agora?</h2>
@@ -2198,6 +2362,8 @@
               <div className="space-y-4">
                 <FaseHeaderMilho fase="setup" />
                 <MonthLine fase={fase} />
+
+                <CalendarioSazonal fase={fase} commodity="milho" />
                 <StatBarMilho decisoesMilho={decisoesMilho} simStateMilho={simStateMilho} caixaInicial={caixaPosSoja} area={decisoes.area} />
                 <MarketBarMilho simStateMilho={simStateMilho} />
                 <div className="mt-4">
@@ -2240,6 +2406,8 @@
               <div className="space-y-4">
                 <FaseHeaderMilho fase="setup" />
                 <MonthLine fase={fase} />
+
+                <CalendarioSazonal fase={fase} commodity="milho" />
                 <StatBarMilho decisoesMilho={decisoesMilho} simStateMilho={simStateMilho} caixaInicial={caixaPosSoja} area={decisoes.area} />
                 <MarketBarMilho simStateMilho={simStateMilho} />
                 <div className="mt-4">
@@ -2281,8 +2449,10 @@
               <div className="space-y-4">
                 <FaseHeaderMilho fase="setup" />
                 <MonthLine fase={fase} />
+
                 <StatBarMilho decisoesMilho={decisoesMilho} simStateMilho={simStateMilho} caixaInicial={caixaPosSoja} area={decisoes.area} />
                 <MarketBarMilho simStateMilho={simStateMilho} />
+                <CalendarioSazonal fase={fase} commodity="milho" />
                 <div className="mt-4">
                   <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão 3 de 4 · safrinha</div>
                   <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
@@ -2327,6 +2497,8 @@
               <div className="space-y-4">
                 <FaseHeaderMilho fase="setup" />
                 <MonthLine fase={fase} />
+
+                <CalendarioSazonal fase={fase} commodity="milho" />
                 <StatBarMilho decisoesMilho={decisoesMilho} simStateMilho={simStateMilho} caixaInicial={caixaPosSoja} area={decisoes.area} />
                 <MarketBarMilho simStateMilho={simStateMilho} />
                 <div className="mt-4">
@@ -2396,8 +2568,10 @@
               <div className="space-y-4">
                 <FaseHeaderMilho fase="comerc" />
                 <MonthLine fase={fase} />
+
                 <StatBarMilho decisoesMilho={decisoesMilho} simStateMilho={simStateMilho} caixaInicial={caixaPosSoja} area={decisoes.area} />
                 <MarketBarMilho simStateMilho={simStateMilho} />
+                <CalendarioSazonal fase={fase} commodity="milho" />
                 <div className="mt-2">
                   <div className="text-[#7a7a68] text-[10px] uppercase tracking-widest mb-1">Decisão extra · venda do milho</div>
                   <h2 className="font-display text-xl text-[#E8E4D5] mb-1">
@@ -2488,6 +2662,8 @@
         <div className="space-y-4">
           <FaseHeader fase={meta.fase} />
           <MonthLine fase={fase} />
+
+          <CalendarioSazonal fase={fase} />
           <ForecastChip enso={enso} />
           <StatBar decisoes={decisoes} simState={simState} />
           <MarketBar simState={simState} />
@@ -2706,6 +2882,30 @@
             </div>
           </div>
 
+          {/* Resultado financeiro: rendimento do caixa pela Selic */}
+          <div>
+            <h3 className="font-display text-lg mb-2 text-[#D4A574]">
+              Resultado financeiro
+              <InfoTip title="Rendimento do caixa parado (Selic)">
+                <p>Dinheiro parado em conta corrente perde poder de compra. Mas alocado em CDB, LCA ou Tesouro Selic <strong>rende próximo à Selic</strong> (hoje 14,5% a.a.).</p>
+                <p>O simulador aplica a Selic <strong>fase a fase</strong> sobre o caixa positivo. Quando o caixa fica negativo (por exemplo, após pagamento à vista de insumos), o rendimento naquela fase é zero.</p>
+                <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Capital inicial</span><span>{fmtBRL(decisoes.capital)}</span></div>
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Selic a.a.</span><span>{(SELIC_AA * 100).toFixed(1)}%</span></div>
+                  <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Rendimento total acumulado</span><span className="text-[#8FB36B]">{fmtBRL(dre.rendimentoCaixa)}</span></div>
+                </div>
+                <p className="text-[#b5b1a0] text-xs mt-3">
+                  <strong className="text-[#D4A574]">À vista</strong>: caixa cai rápido — pouca remuneração nas fases seguintes.
+                  <br/><strong className="text-[#D4A574]">Pronamp/Barter</strong>: caixa preservado durante o ciclo — Selic rende mais.
+                </p>
+                <p className="text-[#b5b1a0] text-xs mt-2">É por isso que muitos produtores grandes preferem financiar mesmo tendo caixa: o spread entre Pronamp (~18%) e Selic (14,5%) é só ~3,5pp, enquanto à vista esvazia a remuneração.</p>
+              </InfoTip>
+            </h3>
+            <div className="bg-[#15170e] border border-[#2a2c1f] rounded">
+              <RowDRE label={`Rendimento do caixa (Selic ${(SELIC_AA * 100).toFixed(1)}% a.a.)`} sub="acumulado fase a fase sobre caixa positivo" value={fmtBRL(dre.rendimentoCaixa)} positivo />
+            </div>
+          </div>
+
           {/* Mercado final */}
           <div>
             <h3 className="font-display text-lg mb-2 text-[#D4A574]">
@@ -2786,6 +2986,8 @@
         <div className="space-y-4">
           <FaseHeaderMilho fase={meta.fase} />
           <MonthLine fase={fase} />
+
+          <CalendarioSazonal fase={fase} commodity="milho" />
           <StatBarMilho decisoesMilho={decisoesMilho} simStateMilho={simStateMilho} caixaInicial={caixaInicial} area={area} />
           <MarketBarMilho simStateMilho={simStateMilho} />
           <div className="mt-2">
@@ -2887,7 +3089,24 @@
             </div>
           </div>
 
-          {/* Nota: sem seguro */}
+          {/* Resultado financeiro */}
+          <div>
+            <h3 className="font-display text-lg mb-2 text-[#D4A574]">
+              Resultado financeiro
+              <InfoTip title="Rendimento do caixa da safrinha (Selic)">
+                <p>Mesma lógica da soja: o caixa pós-soja, alocado em CDB/Tesouro Selic, rende Selic <strong>fase a fase</strong> durante a safrinha (~9 meses). Quando o caixa fica negativo, o rendimento daquela fase é zero.</p>
+                <div className="bg-[#0f110a] rounded p-2 font-mono text-xs mt-2 space-y-1">
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Caixa inicial (pós-soja)</span><span>{fmtBRL(caixaInicial)}</span></div>
+                  <div className="flex justify-between"><span className="text-[#8a8a78]">Selic a.a.</span><span>{(SELIC_AA * 100).toFixed(1)}%</span></div>
+                  <div className="flex justify-between pt-1 border-t border-[#2a2c1f]"><span className="text-[#D4A574]">Rendimento total acumulado</span><span className="text-[#8FB36B]">{fmtBRL(dreMilho.rendimentoCaixa)}</span></div>
+                </div>
+                <p className="text-[#b5b1a0] text-xs mt-3">Em pousio, esse rendimento ainda existe e fica visível no DRE consolidado: o produtor que não planta safrinha rentabiliza o caixa pela Selic enquanto a área descansa.</p>
+              </InfoTip>
+            </h3>
+            <div className="bg-[#15170e] border border-[#2a2c1f] rounded">
+              <RowDRE label={`Rendimento do caixa (Selic ${(SELIC_AA * 100).toFixed(1)}% a.a.)`} sub="acumulado fase a fase sobre caixa positivo" value={fmtBRL(dreMilho.rendimentoCaixa)} positivo />
+            </div>
+          </div>
           <div className="bg-[#0f110a] border border-[#2a2c1f] rounded p-3 text-xs text-[#8a8a78] flex items-start gap-2">
             <Info size={12} className="text-[#7a7a68] mt-0.5 flex-shrink-0" />
             <p className="leading-snug">A safrinha não tem seguro nessa simulação — produtor MT raramente segura milho safrinha pelo custo do prêmio em relação à margem.</p>
